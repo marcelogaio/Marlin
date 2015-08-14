@@ -24,10 +24,6 @@ Marlin development is being accelerated to catch up with a long list of issues. 
 
 ##### [RepRap.org Wiki Page](http://reprap.org/wiki/Marlin)
 
-## Contact
-
-__Google Hangout:__ <a href="https://plus.google.com/hangouts/_/gxn3wrea5gdhoo223yimsiforia" target="_blank">. Hangout</a> We have a hangout every 2 weeks. Search the issue list for "Hangout" to determine the time and date of the next event.
-
 ## Credits
 
 The current Marlin dev team consists of:
