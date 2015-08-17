@@ -1,5 +1,5 @@
 # Marlin 3D Printer Firmware
-<img align="right" src="Documentation/Logo/Marlin%20Logo%20GitHub.png" />
+
 
  Documentation has moved to [marlinfirmware.org](http://www.marlinfirmware.org).
 
