@@ -61,9 +61,13 @@
 //This is for controlling a fan to cool down the stepper drivers
 //it will turn on when any driver is enabled
 //and turn off after the set amount of seconds from last driver being disabled again
-#define CONTROLLERFAN_PIN -1 //Pin used for the fan to cool controller (-1 to disable)
+#define CONTROLLERFAN_PIN FAN2_PIN //Pin used for the fan to cool controller (-1 to disable)
 #define CONTROLLERFAN_SECS 60 //How many seconds, after all motors were disabled, the fan should run
-#define CONTROLLERFAN_SPEED 255  // == full speed
+#define CONTROLLERFAN_SPEED_START 255 //Startup fan speed
+#define CONTROLLERFAN_SPEED_FULL 130  // == full speed
+#define CONTROLLERFAN_SPEED_IDLE 60 //Idle speed when motors are inactive
+#define CONTROLLERFAN_SPEED_MAX 255 // Max limit for fan 
+#define CONTROLLERFAN_SPEED_MIN 0  //Minimum that fan will start without push
 
 // When first starting the main fan, run it at full speed for the
 // given number of milliseconds.  This gets the fan spinning reliably
@@ -75,8 +79,8 @@
 // extruder temperature is above/below EXTRUDER_AUTO_FAN_TEMPERATURE.
 // Multiple extruders can be assigned to the same pin in which case
 // the fan will turn on when any selected extruder is above the threshold.
-#define EXTRUDER_0_AUTO_FAN_PIN   -1
-#define EXTRUDER_1_AUTO_FAN_PIN   -1
+#define EXTRUDER_0_AUTO_FAN_PIN   FAN1_PIN
+#define EXTRUDER_1_AUTO_FAN_PIN   FAN1_PIN
 #define EXTRUDER_2_AUTO_FAN_PIN   -1
 #define EXTRUDER_AUTO_FAN_TEMPERATURE 50
 #define EXTRUDER_AUTO_FAN_SPEED   255  // == full speed

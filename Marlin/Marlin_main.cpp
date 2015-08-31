@@ -608,9 +608,28 @@ void setup()
   lcd_init();
   _delay_ms(1000);	// wait 1sec to display the splash screen
 
-  #if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
+#if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
+  #ifdef CONTROLLERFAN_SPEED_START
     SET_OUTPUT(CONTROLLERFAN_PIN); //Set pin used for driver cooling fan
-  #endif
+    digitalWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_START); // kickstart for controller fan
+    analogWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_START);
+  #endif //CONTROLLERFAN_SPEED_START  
+  #endif //CONTROLLERFAN_PIN
+  
+#if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
+    //SET_OUTPUT(CONTROLLERFAN_PIN); //Set pin used for driver cooling fan
+	// set case fan to normal speed
+	if (CONTROLLERFAN_SPEED_FULL <= CONTROLLERFAN_SPEED_MAX)
+	{
+            digitalWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_FULL); 
+            analogWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_FULL);
+	}
+	else 
+	{
+            digitalWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_MAX); 
+            analogWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_MAX);
+	}
+  #endif //CONTROLLERFAN_PIN
 
   #ifdef DIGIPOT_I2C
     digipot_i2c_init();
@@ -4196,9 +4215,9 @@ void controllerFan()
        || !READ(E2_ENABLE_PIN)
     #endif
     #if EXTRUDER > 1
-      #if defined(X2_ENABLE_PIN) && X2_ENABLE_PIN > -1
-       || !READ(X2_ENABLE_PIN)
-      #endif
+      //~ #if defined(X2_ENABLE_PIN) && X2_ENABLE_PIN > -1
+       //~ || !READ(X2_ENABLE_PIN)
+      //~ #endif
        || !READ(E1_ENABLE_PIN)
     #endif
        || !READ(E0_ENABLE_PIN)) //If any of the drivers are enabled...
@@ -4208,14 +4227,30 @@ void controllerFan()
 
     if ((millis() - lastMotor) >= (CONTROLLERFAN_SECS*1000UL) || lastMotor == 0) //If the last time any driver was enabled, is longer since than CONTROLLERSEC...
     {
-        digitalWrite(CONTROLLERFAN_PIN, 0);
-        analogWrite(CONTROLLERFAN_PIN, 0);
+    if (CONTROLLERFAN_SPEED_IDLE >= CONTROLLERFAN_SPEED_MIN)
+    {
+		digitalWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_IDLE);
+		analogWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_IDLE);
     }
     else
     {
-        // allows digital or PWM fan output to be used (see M42 handling)
-        digitalWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED);
-        analogWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED);
+        digitalWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_MIN);
+        analogWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_MIN);
+    }
+    }
+    else
+    {
+	if (CONTROLLERFAN_SPEED_FULL <= CONTROLLERFAN_SPEED_MAX)
+	{
+        
+        digitalWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_FULL);
+        analogWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_FULL);
+    }
+    else
+    {
+		digitalWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_MAX);
+		analogWrite(CONTROLLERFAN_PIN, CONTROLLERFAN_SPEED_MAX);
+	}
     }
   }
 }
