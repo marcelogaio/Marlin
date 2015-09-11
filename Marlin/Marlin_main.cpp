@@ -1455,6 +1455,9 @@ void process_commands()
       plan_bed_level_matrix.set_to_identity();  //Reset the plane ("erase" all leveling data)
 #endif //ENABLE_AUTO_BED_LEVELING
 
+      //set endstop switch trigger period to less
+      endstop_trig_period = HOME_PROBE_ENDSTOP_PERIOD;
+      
       saved_feedrate = feedrate;
       saved_feedmultiply = feedmultiply;
       feedmultiply = 100;
@@ -1678,6 +1681,8 @@ void process_commands()
       feedmultiply = saved_feedmultiply;
       previous_millis_cmd = millis();
       endstops_hit_on_purpose();
+      //set endstop switch trigger back to std period
+      endstop_trig_period = STD_ENDSTOP_PERIOD;
       break;
 
 #ifdef ENABLE_AUTO_BED_LEVELING
@@ -1686,6 +1691,9 @@ void process_commands()
             #if Z_MIN_PIN == -1
             #error "You must have a Z_MIN endstop in order to enable Auto Bed Leveling feature!!! Z_MIN_PIN must point to a valid hardware pin."
             #endif
+            
+            //set endstop switch trigger period to less
+            endstop_trig_period = HOME_PROBE_ENDSTOP_PERIOD;
 
             // Prevent user from running a G29 without first homing in X and Y
             if (! (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS]) )
@@ -1824,6 +1832,11 @@ void process_commands()
             apply_rotation_xyz(plan_bed_level_matrix, x_tmp, y_tmp, z_tmp);         //Apply the correction sending the probe offset
             current_position[Z_AXIS] = z_tmp - real_z + current_position[Z_AXIS];   //The difference is added to current position and sent to planner.
             plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+            
+            //set endstop switch trigger back to std period
+            endstop_trig_period = STD_ENDSTOP_PERIOD;
+            SERIAL_ECHOLNPGM("Probing done!");
+            
 #ifdef Z_PROBE_SLED
             dock_sled(true, -SLED_DOCKING_OFFSET); // correct for over travel.
 #endif // Z_PROBE_SLED

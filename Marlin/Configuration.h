@@ -387,7 +387,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 
     // set the rectangle in which to probe
     #define LEFT_PROBE_BED_POSITION 6
-    #define RIGHT_PROBE_BED_POSITION 305
+    #define RIGHT_PROBE_BED_POSITION 315
     #define BACK_PROBE_BED_POSITION 315
     #define FRONT_PROBE_BED_POSITION 4
 

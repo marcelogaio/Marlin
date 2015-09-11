@@ -48,6 +48,11 @@
 extern bool abort_on_endstop_hit;
 #endif
 
+// Switch endstop variables
+#define STD_ENDSTOP_PERIOD 50
+#define HOME_PROBE_ENDSTOP_PERIOD 20
+extern unsigned int endstop_trig_period;
+
 // Initialize and start the stepper motor subsystem
 void st_init();
 
