@@ -69,6 +69,7 @@ volatile long endstops_stepsTotal,endstops_stepsDone;
 static volatile bool endstop_x_hit=false;
 static volatile bool endstop_y_hit=false;
 static volatile bool endstop_z_hit=false;
+static volatile bool endstop_z2_hit=false;
 #ifdef ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
 bool abort_on_endstop_hit = false;
 #endif
@@ -77,12 +78,13 @@ bool abort_on_endstop_hit = false;
 #endif
 
 unsigned int endstop_trig_period = STD_ENDSTOP_PERIOD;  // time in ms
-static unsigned int x_min,y_min,z_min,x_max,y_max,z_max = 0;
+static unsigned int x_min,y_min,z_min,z2_min,x_max,y_max,z_max = 0;
 static bool old_x_min_endstop=false;
 static bool old_x_max_endstop=false;
 static bool old_y_min_endstop=false;
 static bool old_y_max_endstop=false;
 static bool old_z_min_endstop=false;
+static bool old_z2_min_endstop=false;
 static bool old_z_max_endstop=false;
 
 static bool check_endstops = true;
@@ -193,6 +195,7 @@ void checkHitEndstops()
    endstop_x_hit=false;
    endstop_y_hit=false;
    endstop_z_hit=false;
+   endstop_z2_hit=false;
 #if defined(ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED) && defined(SDSUPPORT)
    if (abort_on_endstop_hit)
    {
@@ -212,6 +215,7 @@ void endstops_hit_on_purpose()
   endstop_x_hit=false;
   endstop_y_hit=false;
   endstop_z_hit=false;
+  endstop_z2_hit=false;
 }
 
 void enable_endstops(bool check)
@@ -565,7 +569,6 @@ ISR(TIMER1_COMPA_vect)
         #endif
       }
     }
-
     if ((out_bits & (1<<Z_AXIS)) != 0) {   // -direction
       WRITE(Z_DIR_PIN,INVERT_Z_DIR);
       
@@ -575,6 +578,37 @@ ISR(TIMER1_COMPA_vect)
 
       count_direction[Z_AXIS]=-1;
       CHECK_ENDSTOPS
+      {
+        #if defined(Z2_MIN_PIN) && Z2_MIN_PIN > -1
+          //bool z_min_endstop=(READ(Z2_MIN_PIN) != Z2_MIN_ENDSTOP_INVERTING);
+          if(READ(Z2_MIN_PIN) != Z2_MIN_ENDSTOP_INVERTING)
+          {
+			  if(old_z2_min_endstop)
+			  {
+				  //if((current_block->steps_z > 0) && (millis() > (tz_min + SWITCH_PERIOD))) {
+				  if((current_block->steps_z > 0) && (z2_min > endstop_trig_period)) {
+					//SERIAL_ECHOLN("Z_MIN triggered!");
+					endstops_trigsteps[Z_AXIS] = count_position[Z_AXIS];
+					endstop_z2_hit=true;
+					step_events_completed = current_block->step_event_count;
+				  }
+				  z2_min++;
+			  }
+			  else
+			  {
+				//SERIAL_ECHOLN("Reseting Z2_MIN variables!");
+				old_z2_min_endstop = true;
+				//tz_min = millis();
+			  }
+          }
+		  else
+		  {
+			old_z2_min_endstop = false;
+			//tz_min = 0;
+			z2_min = 0;
+		  }
+        #endif
+      }
       {
         #if defined(Z_MIN_PIN) && Z_MIN_PIN > -1
           //bool z_min_endstop=(READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING);
@@ -607,6 +641,7 @@ ISR(TIMER1_COMPA_vect)
         #endif
       }
     }
+    
     else { // +direction
       WRITE(Z_DIR_PIN,!INVERT_Z_DIR);
 
@@ -1036,6 +1071,13 @@ void st_init()
     SET_INPUT(Z_MIN_PIN);
     #ifdef ENDSTOPPULLUP_ZMIN
       WRITE(Z_MIN_PIN,HIGH);
+    #endif
+  #endif
+  
+  #if defined(Z2_MIN_PIN) && Z2_MIN_PIN > -1
+    SET_INPUT(Z2_MIN_PIN);
+    #ifdef ENDSTOPPULLUP_Z2MIN
+      WRITE(Z2_MIN_PIN,HIGH);
     #endif
   #endif
 
