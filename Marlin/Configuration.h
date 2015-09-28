@@ -420,7 +420,8 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
   #define Z_PROBE_OFFSET_FROM_EXTRUDER -1.6
 
   #define Z_RAISE_BEFORE_HOMING 5       // (in mm) Raise Z before homing (G28) for Probe Clearance.
-                                        // Be sure you have this distance over your Z_MAX_POS in case
+                                        // Be sure you have this distance over your Z_MAX_POS in case.
+  #define Z_RAISE_AFTER_HOMING 10       // Raise Z after homing on a LulzBot TAZ 6 with a mometary switch.                                     
 
   #define XY_TRAVEL_SPEED 4000         // X and Y axis travel speed between probes, in mm/min
 

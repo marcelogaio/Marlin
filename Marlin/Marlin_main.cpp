@@ -1652,14 +1652,26 @@ void process_commands()
           }
         #endif
       #endif
-
-
+      
+      #ifdef Z_RAISE_AFTER_HOMING
+          if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
+              destination[Z_AXIS] = Z_RAISE_AFTER_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
+              feedrate = max_feedrate[Z_AXIS];
+              plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate, active_extruder);
+              st_synchronize();
+		}
+      #endif
 
       if(code_seen(axis_codes[Z_AXIS])) {
         if(code_value_long() != 0) {
           current_position[Z_AXIS]=code_value()+add_homing[Z_AXIS];
         }
       }
+      #ifdef Z_RAISE_AFTER_HOMING
+        if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
+        current_position[Z_AXIS] += Z_RAISE_AFTER_HOMING + zprobe_zoffset; //Sets Z distance back to 0 for auto leveling
+	    }
+      #endif
       #ifdef ENABLE_AUTO_BED_LEVELING
         if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
           current_position[Z_AXIS] += zprobe_zoffset;  //Add Z_Probe offset (the distance is negative)
