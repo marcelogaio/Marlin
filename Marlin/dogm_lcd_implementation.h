@@ -53,8 +53,8 @@
 // DOGM parameters (size in pixels)
 #define DOG_CHAR_WIDTH			6
 #define DOG_CHAR_HEIGHT			12
-#define DOG_CHAR_WIDTH_LARGE	9
-#define DOG_CHAR_HEIGHT_LARGE	18
+#define DOG_CHAR_WIDTH_LARGE	7
+#define DOG_CHAR_HEIGHT_LARGE	13
 
 #define START_ROW				0
 
@@ -120,23 +120,20 @@ static void lcd_implementation_init()
    
 	u8g.firstPage();
 	do {
-			// RepRap init bmp
-			u8g.drawBitmapP(0,0,START_BMPBYTEWIDTH,START_BMPHEIGHT,start_bmp);
+			// LulzBot init bmp
+			u8g.drawBitmapP(0,0,LULZBOT_BMPBYTEWIDTH,LULZBOT_BMPHEIGHT,lulzbot_bmp);
 			// Welcome message
 			u8g.setFont(u8g_font_6x10_marlin);
-			u8g.drawStr(62,10,"MARLIN"); 
+			u8g.drawStr(61,17,"TAZ 6"); 
 			u8g.setFont(u8g_font_5x8);
-			u8g.drawStr(62,19,"V1.0.2");
+			u8g.drawStr(95,17,"V1.0");
 			u8g.setFont(u8g_font_6x10_marlin);
-			u8g.drawStr(62,28,"by ErikZalm");
-			u8g.drawStr(62,41,"DOGM128 LCD");
+			u8g.drawStr(62,28,"by Patrick");
 			u8g.setFont(u8g_font_5x8);
-			u8g.drawStr(62,48,"enhancements");
+			u8g.drawStr(63,41,"LulzBot.com");
 			u8g.setFont(u8g_font_5x8);
-			u8g.drawStr(62,55,"by STB, MM");
-			u8g.drawStr(62,61,"uses u");
-			u8g.drawStr90(92,57,"8");
-			u8g.drawStr(100,61,"glib");
+			u8g.drawStr(62,53,"Firmware:");
+			u8g.drawStr(63,62,"Marlin 2016");
 	   } while( u8g.nextPage() );
 }
 
@@ -458,12 +455,11 @@ static void lcd_implementation_quick_feedback()
 
 #if BEEPER > -1
     SET_OUTPUT(BEEPER);
-    for(int8_t i=0;i<10;i++)
+    for(int8_t i=0;i<1;i++)
     {
-		WRITE(BEEPER,HIGH);
-		delay(3);
-		WRITE(BEEPER,LOW);
-		delay(3);
+		tone(BEEPER,1047);
+                delay(10);
+		noTone(BEEPER);
     }
 #endif
 }
