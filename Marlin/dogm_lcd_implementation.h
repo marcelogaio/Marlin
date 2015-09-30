@@ -128,7 +128,7 @@ static void lcd_implementation_init()
 			u8g.setFont(u8g_font_5x8);
 			u8g.drawStr(95,17,"V1.0");
 			u8g.setFont(u8g_font_6x10_marlin);
-			u8g.drawStr(62,28,"by Patrick");
+			u8g.drawStr(62,28,"3D Printer");
 			u8g.setFont(u8g_font_5x8);
 			u8g.drawStr(63,41,"LulzBot.com");
 			u8g.setFont(u8g_font_5x8);
@@ -399,10 +399,10 @@ static void _drawmenu_setting_edit_generic(uint8_t row, const char* pstr, char p
 void lcd_implementation_drawedit(const char* pstr, char* value)
 {
 		u8g.setPrintPos(0 * DOG_CHAR_WIDTH_LARGE, (u8g.getHeight() - 1 - DOG_CHAR_HEIGHT_LARGE) - (1 * DOG_CHAR_HEIGHT_LARGE) - START_ROW );
-		u8g.setFont(u8g_font_9x18);
+		u8g.setFont(u8g_font_7x14);
 		lcd_printPGM(pstr);
 		u8g.print(':');
-		u8g.setPrintPos((14 - strlen(value)) * DOG_CHAR_WIDTH_LARGE, (u8g.getHeight() - 1 - DOG_CHAR_HEIGHT_LARGE) - (1 * DOG_CHAR_HEIGHT_LARGE) - START_ROW );
+		u8g.setPrintPos((18 - strlen(value)) * DOG_CHAR_WIDTH_LARGE, (u8g.getHeight() - 1 - DOG_CHAR_HEIGHT_LARGE) - (1 * DOG_CHAR_HEIGHT_LARGE) - START_ROW );
 		u8g.print(value);
 }
 
