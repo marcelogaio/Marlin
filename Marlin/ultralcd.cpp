@@ -1212,7 +1212,7 @@ void lcd_update()
         else
         {
             card.release();
-            LCD_MESSAGEPGM(MSG_SD_REMOVED);
+            LCD_MESSAGEPGM(WELCOME_MSG);
         }
     }
     #endif//CARDINSERTED

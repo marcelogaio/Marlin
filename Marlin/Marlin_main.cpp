@@ -1783,6 +1783,7 @@ void process_commands()
                 {
                   // raise extruder
                   z_before = current_position[Z_AXIS] + Z_RAISE_BETWEEN_PROBINGS;
+                  LCD_MESSAGEPGM(MSG_AUTO_LEVEL);
                 }
 
                 float measured_z = probe_pt(xProbe, yProbe, z_before);
