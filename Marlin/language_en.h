@@ -13,7 +13,7 @@
 #define MSG_SD_REMOVED                      "Card removed"
 #define MSG_MAIN                            "Main"
 #define MSG_AUTOSTART                       "Autostart"
-#define MSG_AUTO_LEVEL                      "Auto leveling printer"
+#define MSG_AUTO_LEVEL                      "Auto leveling"
 #define MSG_DISABLE_STEPPERS                "Disable steppers"
 #define MSG_AUTO_HOME                       "Auto home"
 #define MSG_SET_HOME_OFFSETS                "Set home offsets"
