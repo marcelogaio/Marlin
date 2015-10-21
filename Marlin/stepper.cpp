@@ -433,6 +433,11 @@ ISR(TIMER1_COMPA_vect)
 					if((current_block->steps_x > 0) && (x_min > endstop_trig_period)) {
 						//SERIAL_ECHOLN("X_MIN triggered!");
 						endstops_trigsteps[X_AXIS] = count_position[X_AXIS];
+                                            if(!probing)
+                                            {
+                                               current_position[X_AXIS] = X_MIN_POS;
+                                               plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+                                            }
 					    endstop_x_hit=true;
 					    step_events_completed = current_block->step_event_count;
 					}
@@ -474,6 +479,11 @@ ISR(TIMER1_COMPA_vect)
 					if((current_block->steps_x > 0) && (x_max > endstop_trig_period)){
 					  //SERIAL_ECHOLN("X_MAX triggered!");
 					  endstops_trigsteps[X_AXIS] = count_position[X_AXIS];
+                                          if(!probing)
+                                          {
+                                             current_position[X_AXIS] = (float)endstops_trigsteps[X_AXIS]/axis_steps_per_unit[X_AXIS];
+                                             plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+                                          }
 					  endstop_x_hit=true;
 					  step_events_completed = current_block->step_event_count;
 					}
@@ -514,6 +524,11 @@ ISR(TIMER1_COMPA_vect)
 				  if((current_block->steps_y > 0) && (y_min > endstop_trig_period)) {
 					//SERIAL_ECHOLN("Y_MIN triggered!");
 					endstops_trigsteps[Y_AXIS] = count_position[Y_AXIS];
+                                        if(!probing)
+                                        {
+                                           current_position[Y_AXIS] = Y_MIN_POS;
+                                           plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+                                        }
 					endstop_y_hit=true;
 					step_events_completed = current_block->step_event_count;
 				  }
@@ -548,6 +563,11 @@ ISR(TIMER1_COMPA_vect)
 				  if((current_block->steps_y > 0) && (y_max > endstop_trig_period)){
 					//SERIAL_ECHOLN("Y_MAX triggered!");
 					endstops_trigsteps[Y_AXIS] = count_position[Y_AXIS];
+                                        if(!probing)
+                                        {
+                                           current_position[Y_AXIS] = (float)endstops_trigsteps[Y_AXIS]/axis_steps_per_unit[Y_AXIS];
+                                           plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+                                        }
 					endstop_y_hit=true;
 					step_events_completed = current_block->step_event_count;
 				  }
@@ -589,6 +609,8 @@ ISR(TIMER1_COMPA_vect)
 				  if((current_block->steps_z > 0) && (z2_min > endstop_trig_period)) {
 					//SERIAL_ECHOLN("Z_MIN triggered!");
 					endstops_trigsteps[Z_AXIS] = count_position[Z_AXIS];
+                                        //current_position[Z_AXIS] = Z_MIN_POS;
+                                        //plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
 					endstop_z2_hit=true;
 					step_events_completed = current_block->step_event_count;
 				  }
@@ -662,6 +684,11 @@ ISR(TIMER1_COMPA_vect)
 				  if((current_block->steps_z > 0) && (z_max > endstop_trig_period)) {
 				    //SERIAL_ECHOLN("Z_MAX triggered!");
 					endstops_trigsteps[Z_AXIS] = count_position[Z_AXIS];
+                                        if(!probing)
+                                        {
+                                           current_position[Z_AXIS] = (float)endstops_trigsteps[Z_AXIS]/axis_steps_per_unit[Z_AXIS];
+                                           plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+                                        }
 					endstop_z_hit=true;
 					step_events_completed = current_block->step_event_count;
 				  }

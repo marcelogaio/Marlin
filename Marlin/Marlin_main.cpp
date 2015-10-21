@@ -169,6 +169,7 @@
 // M503 - print the current settings (from memory not from EEPROM)
 // M540 - Use S[0|1] to enable or disable the stop SD card print on endstop hit (requires ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED)
 // M600 - Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
+// M601 - Resume the print from filament change
 // M665 - set delta configurations
 // M666 - set delta endstop adjustment
 // M605 - Set dual x-carriage movement mode: S<mode> [ X<duplication x-offset> R<duplication temp offset> ]
@@ -242,6 +243,8 @@ float min_pos[3] = { X_MIN_POS, Y_MIN_POS, Z_MIN_POS };
 float max_pos[3] = { X_MAX_POS, Y_MAX_POS, Z_MAX_POS };
 bool axis_known_position[3] = {false, false, false};
 float zprobe_zoffset;
+
+bool probing = false;
 
 // Extruder offset
 #if EXTRUDERS > 1
@@ -344,7 +347,11 @@ const char echomagic[] PROGMEM = "echo:";
 //===========================================================================
 //=============================Private Variables=============================
 //===========================================================================
+bool change_filament = false;
+
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
+const uint8_t axis_max_pin[] = {X_MAX_PIN, Y_MAX_PIN, Z_MAX_PIN};
+const bool axis_max_endstop_inverting[] = {X_MAX_ENDSTOP_INVERTING, Y_MAX_ENDSTOP_INVERTING, Z_MAX_ENDSTOP_INVERTING};
 static float destination[NUM_AXIS] = {  0.0, 0.0, 0.0, 0.0};
 
 #ifndef DELTA
@@ -782,6 +789,9 @@ void get_command()
         //If command was e-stop process now
         if(strcmp(cmdbuffer[bufindw], "M112") == 0)
           kill();
+        //If command was M601 stop change filament mode
+        if(strcmp(cmdbuffer[bufindw], "M601") == 0)
+          change_filament = false;
         
         bufindw = (bufindw + 1)%BUFSIZE;
         buflen += 1;
@@ -1171,13 +1181,17 @@ static void retract_z_probe() {
 /// Probe bed height at position (x,y), returns the measured z value
 static float probe_pt(float x, float y, float z_before) {
   // move to right place
+  probing = true;
   do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], z_before);
   do_blocking_move_to(x - X_PROBE_OFFSET_FROM_EXTRUDER, y - Y_PROBE_OFFSET_FROM_EXTRUDER, current_position[Z_AXIS]);
+  probing = false;
 
 #ifndef Z_PROBE_SLED
   engage_z_probe();   // Engage Z Servo endstop if available
 #endif // Z_PROBE_SLED
+  probing = true;
   run_z_probe();
+  probing = false;
   float measured_z = current_position[Z_AXIS];
 #ifndef Z_PROBE_SLED
   retract_z_probe();
@@ -1454,6 +1468,8 @@ void process_commands()
 #ifdef ENABLE_AUTO_BED_LEVELING
       plan_bed_level_matrix.set_to_identity();  //Reset the plane ("erase" all leveling data)
 #endif //ENABLE_AUTO_BED_LEVELING
+
+      probing = false;
 
       //set endstop switch trigger period to less
       endstop_trig_period = HOME_PROBE_ENDSTOP_PERIOD;
@@ -1865,7 +1881,9 @@ void process_commands()
 
             feedrate = homing_feedrate[Z_AXIS];
 
+            probing = true;
             run_z_probe();
+            probing = false;
             SERIAL_PROTOCOLPGM(MSG_BED);
             SERIAL_PROTOCOLPGM(" X: ");
             SERIAL_PROTOCOL(current_position[X_AXIS]);
@@ -2266,7 +2284,9 @@ void process_commands()
         engage_z_probe();	
 
 	setup_for_endstop_move();
+        probing = true;
 	run_z_probe();
+        probing = false;
 
 	current_position[Z_AXIS] = Z_current = st_get_position_mm(Z_AXIS);
 	Z_start_location = st_get_position_mm(Z_AXIS) + Z_RAISE_BEFORE_PROBING;
@@ -2338,7 +2358,9 @@ void process_commands()
 		}
 
 		setup_for_endstop_move();
+                probing = true;
                 run_z_probe();
+                probing = false;
 
 		sample_set[n] = current_position[Z_AXIS];
 
@@ -3600,6 +3622,7 @@ case 404:  //M404 Enter the nominal filament width (3mm, 1.75mm ) N<3.0> or disp
     #ifdef FILAMENTCHANGEENABLE
     case 600: //Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
     {
+        change_filament = true;
         float target[4];
         float lastpos[4];
         target[X_AXIS]=current_position[X_AXIS];
@@ -3682,7 +3705,7 @@ case 404:  //M404 Enter the nominal filament width (3mm, 1.75mm ) N<3.0> or disp
         delay(100);
         LCD_ALERTMESSAGEPGM(MSG_FILAMENTCHANGE);
         uint8_t cnt=0;
-        while(!lcd_clicked()){
+        while(!lcd_clicked() && change_filament){
           cnt++;
           manage_heater();
           manage_inactivity(true);
@@ -3985,7 +4008,11 @@ void get_coordinates()
   for(int8_t i=0; i < NUM_AXIS; i++) {
     if(code_seen(axis_codes[i]))
     {
-      destination[i] = (float)code_value() + (axis_relative_modes[i] || relative_mode)*current_position[i];
+      float check_destination = (float)code_value() + (axis_relative_modes[i] || relative_mode)*current_position[i];
+      if(i == E_AXIS || check_destination <= current_position[i] || !(digitalRead(axis_max_pin[i])^axis_max_endstop_inverting[i])/* || probing*/)
+        destination[i] = check_destination;
+      else
+        destination[i] = current_position[i];
       seen[i]=true;
     }
     else destination[i] = current_position[i]; //Are these else lines really needed?
