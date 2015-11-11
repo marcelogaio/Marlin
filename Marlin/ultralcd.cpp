@@ -67,6 +67,17 @@ static void lcd_set_contrast();
 static void lcd_control_retract_menu();
 static void lcd_sdcard_menu();
 
+#ifdef RESUME_FEATURE
+  static void lcd_sdcard_resume_menu();
+  static void lcd_sdcard_print_menu();
+  extern float planner_disabled_below_z;
+  extern float last_z;
+  extern bool z_reached;
+  extern bool layer_reached;
+  extern bool hops;
+  extern bool gone_up;
+#endif //RESUME_FEATURE
+
 #ifdef DELTA_CALIBRATION_MENU
 static void lcd_delta_calibrate_menu();
 #endif // DELTA_CALIBRATION_MENU
@@ -330,6 +341,10 @@ static void lcd_sdcard_stop()
 	cancel_heatup = true;
 
 	lcd_setstatus(MSG_PRINT_ABORTED);
+
+    #ifdef RESUME_FEATURE
+      planner_disabled_below_z = 0;
+    #endif //RESUME_FEATURE
 }
 
 /* Menu implementation */
@@ -358,8 +373,12 @@ static void lcd_main_menu()
             else
                 MENU_ITEM(function, MSG_RESUME_PRINT, lcd_sdcard_resume);
             MENU_ITEM(function, MSG_STOP_PRINT, lcd_sdcard_stop);
-        }else{
-            MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_menu);
+        }else if (!(movesplanned() || IS_SD_PRINTING)){
+          #ifdef RESUME_FEATURE
+            MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_print_menu);
+            if (current_position[Z_AXIS] > 0 && current_position[Z_AXIS] != Z_RAISE_AFTER_HOMING)
+              MENU_ITEM(submenu, MSG_CARD_RESUME_MENU, lcd_sdcard_resume_menu);
+          #endif //RESUME_FEATURE
 #if SDCARDDETECT < 1
             MENU_ITEM(gcode, MSG_CNG_SDCARD, PSTR("M21"));  // SD-card changed by user
 #endif
@@ -434,8 +453,8 @@ static void lcd_tune_menu()
 #if TEMP_SENSOR_BED != 0
     MENU_ITEM_EDIT(int3, MSG_BED, &target_temperature_bed, 0, BED_MAXTEMP - 15);
 #endif
-    MENU_ITEM_EDIT(int3, MSG_FAN_SPEED, &fanSpeed, 0, 255);
     MENU_ITEM_EDIT(int3, MSG_FLOW, &extrudemultiply, 10, 999);
+    MENU_ITEM_EDIT(int3, MSG_FAN_SPEED, &fanSpeed, 0, 255);
 //    MENU_ITEM_EDIT(int3, MSG_FLOW0, &extruder_multiply[0], 10, 999);
 #if TEMP_SENSOR_1 != 0
     MENU_ITEM_EDIT(int3, MSG_FLOW1, &extruder_multiply[1], 10, 999);
@@ -443,6 +462,11 @@ static void lcd_tune_menu()
 #if TEMP_SENSOR_2 != 0
     MENU_ITEM_EDIT(int3, MSG_FLOW2, &extruder_multiply[2], 10, 999);
 #endif
+
+#ifdef TRACK_LAYER
+    unsigned long layer = current_layer;
+    MENU_ITEM_EDIT(long5, MSG_LAYER, &layer, layer, layer);
+#endif //TRACK_LAYER
 
 #ifdef BABYSTEPPING
     #ifdef BABYSTEP_XY
@@ -957,6 +981,25 @@ static void lcd_sd_updir()
     card.updir();
     currentMenuViewOffset = 0;
 }
+
+#ifdef RESUME_FEATURE
+  // Print from SD
+  void lcd_sdcard_print_menu() {
+    planner_disabled_below_z = 0;
+    lcd_sdcard_menu();
+  }
+
+  // Print from SD but set flag to ignore movements below a certain Z
+  void lcd_sdcard_resume_menu() {
+    planner_disabled_below_z = current_position[Z_AXIS];
+    last_z = 0;
+    z_reached = false;
+    layer_reached = false;
+    hops = false;
+    gone_up = false;
+    lcd_sdcard_menu();
+  }
+#endif //RESUME_FEATURE
 
 void lcd_sdcard_menu()
 {

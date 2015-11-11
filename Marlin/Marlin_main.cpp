@@ -89,6 +89,7 @@
 // M1   - Same as M0
 // M17  - Enable/Power all stepper motors
 // M18  - Disable all stepper motors; same as M84
+// M19  - Resume print from current (or given) Z height (disables all movements below the current Z position, a file must be selected to print after executing this M code)
 // M20  - List SD card
 // M21  - Init SD card
 // M22  - Release SD card
@@ -348,6 +349,10 @@ const char echomagic[] PROGMEM = "echo:";
 //=============================Private Variables=============================
 //===========================================================================
 bool change_filament = false;
+#ifdef RESUME_FEATURE
+  extern float planner_disabled_below_z;
+  extern bool layer_reached;
+#endif //RESUME_FEATURE
 
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
 const uint8_t axis_max_pin[] = {X_MAX_PIN, Y_MAX_PIN, Z_MAX_PIN};
@@ -839,7 +844,9 @@ void get_command()
         lcd_setstatus(time);
         card.printingHasFinished();
         card.checkautostart(true);
-
+        #ifdef RESUME_FEATURE
+          planner_disabled_below_z = 0;
+        #endif //RESUME_FEATURE
       }
       if(serial_char=='#')
         stop_buffering=true;
@@ -1465,6 +1472,11 @@ void process_commands()
       break;
       #endif //FWRETRACT
     case 28: //G28 Home all Axis one at a time
+
+      #ifdef RESUME_FEATURE
+        if (planner_disabled_below_z) return; // Disable homing if resuming print
+      #endif //RESUME_FEATURE
+
 #ifdef ENABLE_AUTO_BED_LEVELING
       plan_bed_level_matrix.set_to_identity();  //Reset the plane ("erase" all leveling data)
 #endif //ENABLE_AUTO_BED_LEVELING
@@ -1668,31 +1680,35 @@ void process_commands()
           }
         #endif
       #endif
+
+      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
       
       #ifdef Z_RAISE_AFTER_HOMING
           if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
               destination[Z_AXIS] = Z_RAISE_AFTER_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
               feedrate = max_feedrate[Z_AXIS];
-              plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate, active_extruder);
+              plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], destination[Z_AXIS], current_position[E_AXIS], feedrate, active_extruder);
               st_synchronize();
-		}
+          }
       #endif
 
-      if(code_seen(axis_codes[Z_AXIS])) {
-        if(code_value_long() != 0) {
-          current_position[Z_AXIS]=code_value()+add_homing[Z_AXIS];
-        }
-      }
       #ifdef Z_RAISE_AFTER_HOMING
         if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
-        current_position[Z_AXIS] += Z_RAISE_AFTER_HOMING + zprobe_zoffset; //Sets Z distance back to 0 for auto leveling
+        current_position[Z_AXIS] += Z_RAISE_AFTER_HOMING - Z_MIN_POS; //Sets Z distance back to 0 for auto leveling
 	    }
       #endif
+      /*
       #ifdef ENABLE_AUTO_BED_LEVELING
         if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
           current_position[Z_AXIS] += zprobe_zoffset;  //Add Z_Probe offset (the distance is negative)
         }
       #endif
+      */
+      if(code_seen(axis_codes[Z_AXIS])) {
+        if(code_value_long() != 0) {
+          current_position[Z_AXIS]=code_value()+add_homing[Z_AXIS];
+        }
+      }
       plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
 #endif // else DELTA
 
@@ -1705,6 +1721,10 @@ void process_commands()
         enable_endstops(false);
       #endif
 
+      #ifdef TRACK_LAYER
+        current_layer = 0;
+        last_layer_z = 0;
+      #endif //TRACK_LAYER
       feedrate = saved_feedrate;
       feedmultiply = saved_feedmultiply;
       previous_millis_cmd = millis();
@@ -1716,6 +1736,10 @@ void process_commands()
 #ifdef ENABLE_AUTO_BED_LEVELING
     case 29: // G29 Detailed Z-Probe, probes the bed at 3 or more points.
         {
+            #ifdef RESUME_FEATURE
+              if (planner_disabled_below_z) return; // Disable probing if resuming print
+            #endif
+
             #if Z_MIN_PIN == -1
             #error "You must have a Z_MIN endstop in order to enable Auto Bed Leveling feature!!! Z_MIN_PIN must point to a valid hardware pin."
             #endif
@@ -1869,6 +1893,10 @@ void process_commands()
 #ifdef Z_PROBE_SLED
             dock_sled(true, -SLED_DOCKING_OFFSET); // correct for over travel.
 #endif // Z_PROBE_SLED
+            #ifdef TRACK_LAYER
+              current_layer = 0;
+              last_layer_z = 0;
+            #endif //TRACK_LAYER
         }
         break;
 #ifndef Z_PROBE_SLED
@@ -2007,6 +2035,26 @@ void process_commands()
         enable_e2();
       break;
 
+#ifdef RESUME_FEATURE
+    case 19: // M19 - resume from Z
+      if (code_seen('Z')) {
+        get_coordinates(); // For Z
+        prepare_move();
+        enquecommand("M114"); // tell the host where it is
+      }
+
+      if (current_position[Z_AXIS] > 0) {
+        planner_disabled_below_z = current_position[Z_AXIS];
+
+        SERIAL_PROTOCOLPGM("Resume from Z = ");
+        SERIAL_PROTOCOL(planner_disabled_below_z);
+        SERIAL_PROTOCOLPGM(" mm\n");
+      }
+      else
+        SERIAL_PROTOCOLPGM("Error: Resume from Z <= 0\n");
+      break;
+#endif //RESUME_FEATURE
+
 #ifdef SDSUPPORT
     case 20: // M20 - list SD card
       SERIAL_PROTOCOLLNPGM(MSG_BEGIN_FILE_LIST);
@@ -2030,6 +2078,10 @@ void process_commands()
       break;
     case 24: //M24 - Start SD print
       card.startFileprint();
+      #ifdef TRACK_LAYER
+        current_layer = 0;
+        last_layer_z = 0;
+      #endif //TRACK_LAYER
       starttime=millis();
       break;
     case 25: //M25 - Pause SD print
@@ -2825,6 +2877,11 @@ Sigma_Exit:
       SERIAL_PROTOCOL(float(st_get_position(Y_AXIS))/axis_steps_per_unit[Y_AXIS]);
       SERIAL_PROTOCOLPGM(" Z:");
       SERIAL_PROTOCOL(float(st_get_position(Z_AXIS))/axis_steps_per_unit[Z_AXIS]);
+
+      #ifdef TRACK_LAYER
+        SERIAL_PROTOCOLPGM("  Layer:");
+        SERIAL_PROTOCOL(current_layer);
+      #endif //TRACK_LAYER
 
       SERIAL_PROTOCOLLN("");
 #ifdef SCARA
@@ -3867,6 +3924,9 @@ case 404:  //M404 Enter the nominal filament width (3mm, 1.75mm ) N<3.0> or disp
     }
   }
 
+  #ifdef RESUME_FEATURE
+    else if (!planner_disabled_below_z || layer_reached);
+  #endif
   else if(code_seen('T'))
   {
     tmp_extruder = code_value();
@@ -4053,7 +4113,9 @@ void clamp_to_software_endstops(float target[3])
   if (min_software_endstops) {
     if (target[X_AXIS] < min_pos[X_AXIS]) target[X_AXIS] = min_pos[X_AXIS];
     if (target[Y_AXIS] < min_pos[Y_AXIS]) target[Y_AXIS] = min_pos[Y_AXIS];
-    
+    if (target[Z_AXIS] < min_pos[Z_AXIS]) target[Z_AXIS] = min_pos[Z_AXIS];
+
+    /*
     float negative_z_offset = 0;
     #ifdef ENABLE_AUTO_BED_LEVELING
       if (Z_PROBE_OFFSET_FROM_EXTRUDER < 0) negative_z_offset = negative_z_offset + Z_PROBE_OFFSET_FROM_EXTRUDER;
@@ -4061,6 +4123,7 @@ void clamp_to_software_endstops(float target[3])
     #endif
     
     if (target[Z_AXIS] < min_pos[Z_AXIS]+negative_z_offset) target[Z_AXIS] = min_pos[Z_AXIS]+negative_z_offset;
+    */
   }
 
   if (max_software_endstops) {

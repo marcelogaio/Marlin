@@ -36,7 +36,7 @@
 #define SERIAL_PORT 0
 
 // This determines the communication speed of the printer
-#define BAUDRATE 115200
+#define BAUDRATE 250000
 
 // This enables the serial port associated to the Bluetooth interface
 //#define BTENABLED              // Enable BT interface on AT90USB devices
@@ -357,7 +357,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 #define Y_MAX_POS 325
 #define Y_MIN_POS 0
 #define Z_MAX_POS 250
-#define Z_MIN_POS -2
+#define Z_MIN_POS 0
 
 #define X_MAX_LENGTH (X_MAX_POS - X_MIN_POS)
 #define Y_MAX_LENGTH (Y_MAX_POS - Y_MIN_POS)
@@ -390,8 +390,8 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 
     // set the rectangle in which to probe
     #define LEFT_PROBE_BED_POSITION 6
-    #define RIGHT_PROBE_BED_POSITION 315
-    #define BACK_PROBE_BED_POSITION 315
+    #define RIGHT_PROBE_BED_POSITION 310
+    #define BACK_PROBE_BED_POSITION 310
     #define FRONT_PROBE_BED_POSITION 4
 
      // set the number of grid points per dimension
@@ -417,7 +417,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
   // X and Y offsets must be integers
   #define X_PROBE_OFFSET_FROM_EXTRUDER 0
   #define Y_PROBE_OFFSET_FROM_EXTRUDER 0
-  #define Z_PROBE_OFFSET_FROM_EXTRUDER -1.6
+  #define Z_PROBE_OFFSET_FROM_EXTRUDER -1.5
 
   #define Z_RAISE_BEFORE_HOMING 5       // (in mm) Raise Z before homing (G28) for Probe Clearance.
                                         // Be sure you have this distance over your Z_MAX_POS in case.
@@ -519,6 +519,29 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 //===========================================================================
 //=============================Additional Features===========================
 //===========================================================================
+
+//===========================================================================
+//============================== Resume From Z ==============================
+//===========================================================================
+
+//This feature allows you to resume a failed print from given Z height.
+//It parses through the gcode until it passes the given Z threshold height
+//(either from the current location when selecting Menu > Resume SD from Z > file.gcode or just M19; or with M19 Z(some number here)),
+//it also compensates for z-lifts around the given threshold.
+
+#define RESUME_FEATURE
+
+//===========================================================================
+//============================== Layer Tracking =============================
+//===========================================================================
+
+//This feature keeps track of the current layer, accounting for Z lifts and multiple objects
+//The current layer number can be found in Menu > Tune > Layer whilst printing from an LCD controller (via SD) or by sending M114 (SD or not).
+
+#define TRACK_LAYER
+#ifdef TRACK_LAYER
+  //#define INCREASE_LAYER_ON_HOP //This type of layer tracking depends on the slicing software being used (uncomment this if you are using Slic3r)
+#endif
 
 // Custom M code points
 #define CUSTOM_M_CODES
@@ -731,7 +754,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 // Use software PWM to drive the fan, as for the heaters. This uses a very low frequency
 // which is not ass annoying as with the hardware PWM. On the other hand, if this frequency
 // is too low, you should also increment SOFT_PWM_SCALE.
-//#define FAN_SOFT_PWM
+#define FAN_SOFT_PWM
 
 // Incrementing this by 1 will double the software PWM frequency,
 // affecting heaters, and the fan if FAN_SOFT_PWM is enabled.

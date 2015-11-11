@@ -232,6 +232,13 @@ extern float min_pos[3];
 extern float max_pos[3];
 extern bool axis_known_position[3];
 extern float zprobe_zoffset;
+#ifdef RESUME_FEATURE
+  extern float planner_disabled_below_z;
+#endif
+#ifdef TRACK_LAYER
+  extern float last_layer_z;
+  extern unsigned short current_layer; // estimated current layer number
+#endif //TRACK_LAYER
 extern int fanSpeed;
 #ifdef BARICUDA
 extern int ValvePressure;

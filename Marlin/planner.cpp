@@ -74,6 +74,22 @@ float max_z_jerk;
 float max_e_jerk;
 float mintravelfeedrate;
 unsigned long axis_steps_per_sqr_second[NUM_AXIS];
+#ifdef RESUME_FEATURE
+  float planner_disabled_below_z = 0;
+  float last_z = 0;
+  bool z_reached = false;
+  bool layer_reached = false;
+  bool hops = false;
+  bool gone_up = false;
+#endif //RESUME_FEATURE
+#ifdef TRACK_LAYER
+  unsigned short current_layer = 0;
+  float last_layer_z = 0;
+  #ifndef RESUME_FEATURE
+    bool gone_up = false;
+    float last_z = 0;
+  #endif //RESUME_FEATURE
+#endif //TRACK_LAYER
 
 #ifdef ENABLE_AUTO_BED_LEVELING
 // this holds the required transform to compensate for bed level
@@ -523,6 +539,69 @@ void check_axes_activity()
 #endif
 }
 
+#ifdef RESUME_FEATURE
+  bool floor_z(const float &z)
+  {
+    // filter out moves below a given floor height and attempt to ignore any hops/travels
+    if (planner_disabled_below_z && !layer_reached) {
+      if (z < planner_disabled_below_z) {
+        if (z > last_z && !gone_up) // up once
+          gone_up = true;
+        else if (z < last_z) { // back down
+          hops = true;
+          gone_up = false;
+        }
+        else if (z > last_z && gone_up) // up twice
+          hops = false;
+        z_reached = false;
+        last_z = z;
+        return true;
+      }
+      else if (hops && !z_reached) {
+        z_reached = true;
+        last_z = z;
+        return true;
+      }
+      else if (hops && z == last_z)
+        return true;
+      else
+        layer_reached = true;
+    }
+    else if (planner_disabled_below_z && z < planner_disabled_below_z) {
+      z_reached = false;
+      layer_reached = false;
+      return true;
+    }
+    else
+      return false;
+  }
+#endif //RESUME_FEATURE
+
+#ifdef TRACK_LAYER
+  void layer_count(const float &z)
+  {
+    if (z > last_z && !gone_up) // up once
+      gone_up = true;
+    else if (z < last_z) { // back down
+      if (z > last_layer_z)
+        #ifdef INCREASE_LAYER_ON_HOP
+          current_layer++;
+        #else
+          ;
+        #endif
+      else if (z < last_layer_z && z != 0)
+        current_layer = 1; // if it goes lower than what we would think was the previous layer then we might as well assume it's printing another object
+      else if (z == 0)
+        current_layer = 0;
+      last_layer_z = z;
+      gone_up = false;
+    }
+    else if (z > last_z && gone_up) // up twice
+      current_layer++; // be careful with prints like the spiral vase
+
+    last_z = z;
+  }
+#endif //TRACK_LAYER
 
 float junction_deviation = 0.1;
 // Add a new linear movement to the buffer. steps_x, _y and _z is the absolute position in 
@@ -534,6 +613,18 @@ void plan_buffer_line(float x, float y, float z, const float &e, float feed_rate
 void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder)
 #endif  //ENABLE_AUTO_BED_LEVELING
 {
+  #ifdef TRACK_LAYER
+    layer_count(z);
+  #endif //TRACK_LAYER
+
+  #ifdef RESUME_FEATURE
+    if(floor_z(z))
+    {
+      current_position[E_AXIS] = e;
+      return;
+    }
+  #endif
+
   // Calculate the buffer head after we push this byte
   int next_buffer_head = next_block_index(block_buffer_head);
 
