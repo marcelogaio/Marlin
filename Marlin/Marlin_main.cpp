@@ -354,6 +354,10 @@ bool change_filament = false;
   extern bool layer_reached;
 #endif //RESUME_FEATURE
 
+#if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
+  bool target_temp_reached = false;
+#endif
+
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
 const uint8_t axis_max_pin[] = {X_MAX_PIN, Y_MAX_PIN, Z_MAX_PIN};
 const bool axis_max_endstop_inverting[] = {X_MAX_ENDSTOP_INVERTING, Y_MAX_ENDSTOP_INVERTING, Z_MAX_ENDSTOP_INVERTING};
@@ -1731,6 +1735,7 @@ void process_commands()
       endstops_hit_on_purpose();
       //set endstop switch trigger back to std period
       endstop_trig_period = STD_ENDSTOP_PERIOD;
+      MYSERIAL.flush();
       break;
 
 #ifdef ENABLE_AUTO_BED_LEVELING
@@ -2491,6 +2496,7 @@ Sigma_Exit:
       if(setTargetedHotend(104)){
         break;
       }
+      target_temp_reached = false;
       if (code_seen('S')) setTargetHotend(code_value(), tmp_extruder);
 #ifdef DUAL_X_CARRIAGE
       if (dual_x_carriage_mode == DXC_DUPLICATION_MODE && tmp_extruder == 0)
@@ -2502,6 +2508,7 @@ Sigma_Exit:
       kill();
       break;
     case 140: // M140 set bed temp
+      target_temp_reached = false;
       if (code_seen('S')) setTargetBed(code_value());
       break;
     case 105 : // M105
@@ -2573,6 +2580,7 @@ Sigma_Exit:
       if(setTargetedHotend(109)){
         break;
       }
+      target_temp_reached = false;
       LCD_MESSAGEPGM(MSG_HEATING);
       #ifdef AUTOTEMP
         autotemp_enabled=false;
@@ -2642,6 +2650,7 @@ Sigma_Exit:
             #endif
             codenum = millis();
           }
+          target_temp_reached = false;
           manage_heater();
           manage_inactivity();
           lcd_update();
@@ -2659,10 +2668,13 @@ Sigma_Exit:
         LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
         starttime=millis();
         previous_millis_cmd = millis();
+        MYSERIAL.flush();
+        target_temp_reached = true;
       }
       break;
     case 190: // M190 - Wait for bed heater to reach target.
     #if defined(TEMP_BED_PIN) && TEMP_BED_PIN > -1
+        target_temp_reached = false;
         LCD_MESSAGEPGM(MSG_BED_HEATING);
         if (code_seen('S')) {
           setTargetBed(code_value());
@@ -2696,6 +2708,8 @@ Sigma_Exit:
         }
         LCD_MESSAGEPGM(MSG_BED_DONE);
         previous_millis_cmd = millis();
+        MYSERIAL.flush();
+        target_temp_reached = true;
     #endif
         break;
 
