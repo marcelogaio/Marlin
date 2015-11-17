@@ -373,7 +373,7 @@ static void lcd_main_menu()
             else
                 MENU_ITEM(function, MSG_RESUME_PRINT, lcd_sdcard_resume);
             MENU_ITEM(function, MSG_STOP_PRINT, lcd_sdcard_stop);
-        }else if (!(movesplanned() || IS_SD_PRINTING)){
+        }else if (!movesplanned() && !IS_SD_PRINTING){
           #ifdef RESUME_FEATURE
             MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_print_menu);
             if (current_position[Z_AXIS] > 0 && current_position[Z_AXIS] != Z_RAISE_AFTER_HOMING)
