@@ -146,7 +146,7 @@
 // PID settings:
 // Comment the following line to disable PID and enable bang-bang.
 #define PIDTEMP
-#define BANG_MAX 220 // limits current to nozzle while in bang-bang mode; 255=full current
+#define BANG_MAX 255 // limits current to nozzle while in bang-bang mode; 255=full current
 #define PID_MAX BANG_MAX // limits current to nozzle while PID is active (see PID_FUNCTIONAL_RANGE below); 255=full current
 #ifdef PIDTEMP
   //#define PID_DEBUG // Sends debug data to the serial port.
@@ -352,10 +352,10 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 #define max_software_endstops true  // If true, axis won't move to coordinates greater than the defined lengths below.
 
 // Travel limits after homing
-#define X_MAX_POS 320
-#define X_MIN_POS 0
-#define Y_MAX_POS 325
-#define Y_MIN_POS 0
+#define X_MAX_POS 300
+#define X_MIN_POS -20
+#define Y_MAX_POS 305
+#define Y_MIN_POS -20
 #define Z_MAX_POS 250
 #define Z_MIN_POS 0
 
@@ -389,10 +389,10 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
   #ifdef AUTO_BED_LEVELING_GRID
 
     // set the rectangle in which to probe
-    #define LEFT_PROBE_BED_POSITION 9
-    #define RIGHT_PROBE_BED_POSITION 308
-    #define BACK_PROBE_BED_POSITION 306
-    #define FRONT_PROBE_BED_POSITION 12
+    #define LEFT_PROBE_BED_POSITION -11
+    #define RIGHT_PROBE_BED_POSITION 288
+    #define BACK_PROBE_BED_POSITION 286
+    #define FRONT_PROBE_BED_POSITION -8
 
      // set the number of grid points per dimension
      // I wouldn't see a reason to go above 3 (=9 probing points on the bed)
@@ -450,8 +450,8 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 
   #ifdef Z_SAFE_HOMING
 
-    #define Z_SAFE_HOMING_X_POINT (1)    // X point for Z homing when homing all axis (G28)
-    #define Z_SAFE_HOMING_Y_POINT (277.8)    // Y point for Z homing when homing all axis (G28)
+    #define Z_SAFE_HOMING_X_POINT (-19)    // X point for Z homing when homing all axis (G28)
+    #define Z_SAFE_HOMING_Y_POINT (257.8)    // Y point for Z homing when homing all axis (G28)
 
   #endif
 
