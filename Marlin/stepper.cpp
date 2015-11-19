@@ -526,7 +526,7 @@ ISR(TIMER1_COMPA_vect)
 					endstops_trigsteps[Y_AXIS] = count_position[Y_AXIS];
                                         if(!probing)
                                         {
-                                           current_position[Y_AXIS] = Y_MIN_POS;
+                                           current_position[Y_AXIS] = (float)endstops_trigsteps[Y_AXIS]/axis_steps_per_unit[Y_AXIS];
                                            plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
                                         }
 					endstop_y_hit=true;
@@ -565,7 +565,7 @@ ISR(TIMER1_COMPA_vect)
 					endstops_trigsteps[Y_AXIS] = count_position[Y_AXIS];
                                         if(!probing)
                                         {
-                                           current_position[Y_AXIS] = (float)endstops_trigsteps[Y_AXIS]/axis_steps_per_unit[Y_AXIS];
+                                           current_position[Y_AXIS] = Y_MAX_POS;
                                            plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
                                         }
 					endstop_y_hit=true;
