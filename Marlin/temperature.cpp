@@ -1056,6 +1056,8 @@ void thermal_runaway_protection(int *state, unsigned long *timer, float temperat
       {
         *timer = millis();
       }
+      else if(!TEMP_REACHED)
+        *state = 1;
       else if ( (millis() - *timer) > ((unsigned long) period_seconds) * 1000)
       {
         SERIAL_ERROR_START;
