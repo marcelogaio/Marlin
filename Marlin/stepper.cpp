@@ -69,7 +69,7 @@ volatile long endstops_stepsTotal,endstops_stepsDone;
 static volatile bool endstop_x_hit=false;
 static volatile bool endstop_y_hit=false;
 static volatile bool endstop_z_hit=false;
-static volatile bool endstop_z2_hit=false;
+static volatile bool endstop_zprobe_hit=false;
 #ifdef ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
 bool abort_on_endstop_hit = false;
 #endif
@@ -78,13 +78,13 @@ bool abort_on_endstop_hit = false;
 #endif
 
 unsigned int endstop_trig_period = STD_ENDSTOP_PERIOD;  // time in ms
-static unsigned int x_min,y_min,z_min,z2_min,x_max,y_max,z_max = 0;
+static unsigned int x_min,y_min,z_min,z_probe,x_max,y_max,z_max = 0;
 static bool old_x_min_endstop=false;
 static bool old_x_max_endstop=false;
 static bool old_y_min_endstop=false;
 static bool old_y_max_endstop=false;
 static bool old_z_min_endstop=false;
-static bool old_z2_min_endstop=false;
+static bool old_zprobe_min_endstop=false;
 static bool old_z_max_endstop=false;
 
 static bool check_endstops = true;
@@ -195,7 +195,7 @@ void checkHitEndstops()
    endstop_x_hit=false;
    endstop_y_hit=false;
    endstop_z_hit=false;
-   endstop_z2_hit=false;
+   endstop_zprobe_hit=false;
 #if defined(ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED) && defined(SDSUPPORT)
    if (abort_on_endstop_hit)
    {
@@ -215,7 +215,7 @@ void endstops_hit_on_purpose()
   endstop_x_hit=false;
   endstop_y_hit=false;
   endstop_z_hit=false;
-  endstop_z2_hit=false;
+  endstop_zprobe_hit=false;
 }
 
 void enable_endstops(bool check)
@@ -599,35 +599,35 @@ ISR(TIMER1_COMPA_vect)
       count_direction[Z_AXIS]=-1;
       CHECK_ENDSTOPS
       {
-        #if defined(Z2_MIN_PIN) && Z2_MIN_PIN > -1
-          //bool z_min_endstop=(READ(Z2_MIN_PIN) != Z2_MIN_ENDSTOP_INVERTING);
-          if(READ(Z2_MIN_PIN) != Z2_MIN_ENDSTOP_INVERTING)
+        #if defined(Z_PROBE_PIN) && Z_PROBE_PIN > -1
+          //bool z_probe_endstop=(READ(Z_PROBE_PIN) != Z_PROBE_ENDSTOP_INVERTING);
+          if(READ(Z_PROBE_PIN) != Z_PROBE_ENDSTOP_INVERTING)
           {
-			  if(old_z2_min_endstop)
+			  if(old_zprobe_min_endstop)
 			  {
 				  //if((current_block->steps_z > 0) && (millis() > (tz_min + SWITCH_PERIOD))) {
-				  if((current_block->steps_z > 0) && (z2_min > endstop_trig_period)) {
+				  if((current_block->steps_z > 0) && (z_probe > endstop_trig_period)) {
 					//SERIAL_ECHOLN("Z_MIN triggered!");
 					endstops_trigsteps[Z_AXIS] = count_position[Z_AXIS];
                                         //current_position[Z_AXIS] = Z_MIN_POS;
                                         //plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-					endstop_z2_hit=true;
+					endstop_zprobe_hit=true;
 					step_events_completed = current_block->step_event_count;
 				  }
-				  z2_min++;
+				  z_probe++;
 			  }
 			  else
 			  {
-				//SERIAL_ECHOLN("Reseting Z2_MIN variables!");
-				old_z2_min_endstop = true;
+				//SERIAL_ECHOLN("Reseting Z_PROBE variables!");
+				old_zprobe_min_endstop = true;
 				//tz_min = millis();
 			  }
           }
 		  else
 		  {
-			old_z2_min_endstop = false;
+			old_zprobe_min_endstop = false;
 			//tz_min = 0;
-			z2_min = 0;
+			z_probe = 0;
 		  }
         #endif
       }
@@ -1101,10 +1101,10 @@ void st_init()
     #endif
   #endif
   
-  #if defined(Z2_MIN_PIN) && Z2_MIN_PIN > -1
-    SET_INPUT(Z2_MIN_PIN);
-    #ifdef ENDSTOPPULLUP_Z2MIN
-      WRITE(Z2_MIN_PIN,HIGH);
+  #if defined(Z_PROBE_PIN) && Z_PROBE_PIN > -1
+    SET_INPUT(Z_PROBE_PIN);
+    #ifdef ENDSTOPPULLUP_ZPROBE
+      WRITE(Z_PROBE_PIN,HIGH);
     #endif
   #endif
 
