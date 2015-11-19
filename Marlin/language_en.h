@@ -100,7 +100,7 @@
 #define MSG_RESTORE_FAILSAFE                "Restore to Factory"
 #define MSG_REFRESH                         "Refresh"
 #define MSG_WATCH                           "Info screen"
-#define MSG_CHANGE_FILAMENT                 "Change filament"
+#define MSG_CHANGE_TEMPERATURE              "Change temp"
 #define MSG_TUNE                            "Tune"
 #define MSG_PAUSE_PRINT                     "Pause print"
 #define MSG_CARD_RESUME_MENU                "Resume SD from Z"

@@ -52,7 +52,7 @@ static void lcd_status_screen();
 extern bool powersupply;
 static void lcd_main_menu();
 static void lcd_tune_menu();
-static void lcd_change_filament_menu();
+//static void lcd_change_temperature_menu();
 static void lcd_movement_menu();
 static void lcd_move_menu();
 static void lcd_configuration_menu();
@@ -357,7 +357,7 @@ static void lcd_main_menu()
         MENU_ITEM(submenu, MSG_TUNE, lcd_tune_menu);
     }else{
         MENU_ITEM(submenu, MSG_MOVEMENT, lcd_movement_menu);
-        MENU_ITEM(submenu, MSG_CHANGE_FILAMENT, lcd_change_filament_menu);
+        MENU_ITEM(submenu, MSG_TEMPERATURE, lcd_control_temperature_menu);
 #ifdef DELTA_CALIBRATION_MENU
         MENU_ITEM(submenu, MSG_DELTA_CALIBRATE, lcd_delta_calibrate_menu);
 #endif // DELTA_CALIBRATION_MENU
@@ -582,7 +582,6 @@ void lcd_preheat_abs_bedonly()
 static void lcd_preheat_pla_menu()
 {
     START_MENU();
-    MENU_ITEM(back, MSG_CHANGE_FILAMENT, lcd_change_filament_menu);
     MENU_ITEM(function, MSG_PREHEAT_PLA0, lcd_preheat_pla0);
 #if TEMP_SENSOR_1 != 0 //2 extruder preheat
     MENU_ITEM(function, MSG_PREHEAT_PLA1, lcd_preheat_pla1);
@@ -602,7 +601,6 @@ static void lcd_preheat_pla_menu()
 static void lcd_preheat_abs_menu()
 {
     START_MENU();
-    MENU_ITEM(back, MSG_CHANGE_FILAMENT, lcd_change_filament_menu);
     MENU_ITEM(function, MSG_PREHEAT_ABS0, lcd_preheat_abs0);
 #if TEMP_SENSOR_1 != 0 //2 extruder preheat
     MENU_ITEM(function, MSG_PREHEAT_ABS1, lcd_preheat_abs1);
@@ -638,28 +636,28 @@ static void lcd_movement_menu()
     MENU_ITEM(submenu, MSG_MOVE_AXIS, lcd_move_menu);
     END_MENU();
 }
-static void lcd_change_filament_menu()
-{
-    START_MENU();
-    MENU_ITEM(back, MSG_MAIN, lcd_main_menu);
-    MENU_ITEM(submenu, MSG_TEMPERATURE, lcd_control_temperature_menu);
-#ifdef SDSUPPORT
-    #ifdef MENU_ADDAUTOSTART
-      MENU_ITEM(function, MSG_AUTOSTART, lcd_autostart_sd);
-    #endif
-#endif
-//    MENU_ITEM(function, MSG_SET_HOME_OFFSETS, lcd_set_home_offsets);
-//    MENU_ITEM(gcode, MSG_SET_ORIGIN, PSTR("G92 X0 Y0 Z0"));
-#if TEMP_SENSOR_0 != 0
-  #if TEMP_SENSOR_1 != 0 || TEMP_SENSOR_2 != 0 || TEMP_SENSOR_BED != 0
-//    MENU_ITEM(submenu, MSG_PREHEAT_PLA, lcd_preheat_pla_menu);
-//    MENU_ITEM(submenu, MSG_PREHEAT_ABS, lcd_preheat_abs_menu);
-  #else
-    MENU_ITEM(function, MSG_PREHEAT_PLA, lcd_preheat_pla0);
-    MENU_ITEM(function, MSG_PREHEAT_ABS, lcd_preheat_abs0);
-  #endif
-#endif
-    MENU_ITEM(function, MSG_COOLDOWN, lcd_cooldown);
+//~ static void lcd_change_temperature_menu()
+//~ {
+    //~ START_MENU();
+    //~ MENU_ITEM(back, MSG_MAIN, lcd_main_menu);
+    //~ MENU_ITEM(submenu, MSG_TEMPERATURE, lcd_control_temperature_menu);
+//~ #ifdef SDSUPPORT
+    //~ #ifdef MENU_ADDAUTOSTART
+      //~ MENU_ITEM(function, MSG_AUTOSTART, lcd_autostart_sd);
+    //~ #endif
+//~ #endif
+//~ //    MENU_ITEM(function, MSG_SET_HOME_OFFSETS, lcd_set_home_offsets);
+//~ //    MENU_ITEM(gcode, MSG_SET_ORIGIN, PSTR("G92 X0 Y0 Z0"));
+//~ #if TEMP_SENSOR_0 != 0
+  //~ #if TEMP_SENSOR_1 != 0 || TEMP_SENSOR_2 != 0 || TEMP_SENSOR_BED != 0
+//~ //    MENU_ITEM(submenu, MSG_PREHEAT_PLA, lcd_preheat_pla_menu);
+//~ //    MENU_ITEM(submenu, MSG_PREHEAT_ABS, lcd_preheat_abs_menu);
+  //~ #else
+    //~ MENU_ITEM(function, MSG_PREHEAT_PLA, lcd_preheat_pla0);
+    //~ MENU_ITEM(function, MSG_PREHEAT_ABS, lcd_preheat_abs0);
+  //~ #endif
+//~ #endif
+    //~ MENU_ITEM(function, MSG_COOLDOWN, lcd_cooldown);
 //#if PS_ON_PIN > -1
 //    if (powersupply)
 //    {
@@ -668,8 +666,8 @@ static void lcd_change_filament_menu()
 //        MENU_ITEM(gcode, MSG_SWITCH_PS_ON, PSTR("M80"));
 //    }
 //#endif
-    END_MENU();
-}
+//    END_MENU();
+//}
 
 #ifdef DELTA_CALIBRATION_MENU
 static void lcd_delta_calibrate_menu()
@@ -803,7 +801,7 @@ static void lcd_control_temperature_menu()
 #endif
 
     START_MENU();
-    MENU_ITEM(back, MSG_CHANGE_FILAMENT, lcd_change_filament_menu);
+    MENU_ITEM(back, MSG_MAIN, lcd_main_menu);
 #if TEMP_SENSOR_0 != 0
     MENU_ITEM_EDIT(int3, MSG_NOZZLE, &target_temperature[0], 0, HEATER_0_MAXTEMP - 15);
 #endif
@@ -823,6 +821,7 @@ static void lcd_control_temperature_menu()
     MENU_ITEM_EDIT(float3, MSG_MAX, &autotemp_max, 0, HEATER_0_MAXTEMP - 15);
     MENU_ITEM_EDIT(float32, MSG_FACTOR, &autotemp_factor, 0.0, 1.0);
 #endif
+    MENU_ITEM(function, MSG_COOLDOWN, lcd_cooldown);
 //#ifdef PIDTEMP
 //    MENU_ITEM_EDIT(float52, MSG_PID_P, &Kp, 1, 9990);
     // i is typically a small value so allows values below 1

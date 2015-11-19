@@ -293,7 +293,7 @@ your extruder heater takes 2 minutes to hit the target on heating.
    #define ENDSTOPPULLUP_XMIN
    #define ENDSTOPPULLUP_YMIN
    #define ENDSTOPPULLUP_ZMIN
-   #define ENDSTOPPULLUP_Z2MIN
+   #define ENDSTOPPULLUP_ZPROBE
 #endif
 
 #ifdef ENDSTOPPULLUPS
@@ -303,14 +303,14 @@ your extruder heater takes 2 minutes to hit the target on heating.
   #define ENDSTOPPULLUP_XMIN
   #define ENDSTOPPULLUP_YMIN
   #define ENDSTOPPULLUP_ZMIN
-  #define ENDSTOPPULLUP_Z2MIN
+  #define ENDSTOPPULLUP_ZPROBE
 #endif
 
 // The pullups are needed if you directly connect a mechanical endswitch between the signal and ground pins.
 const bool X_MIN_ENDSTOP_INVERTING = true; // set to true to invert the logic of the endstop.
 const bool Y_MIN_ENDSTOP_INVERTING = true; // set to true to invert the logic of the endstop.
 const bool Z_MIN_ENDSTOP_INVERTING = true; // set to true to invert the logic of the endstop.
-const bool Z2_MIN_ENDSTOP_INVERTING = true; // set to true to invert the logic of the endstop.
+const bool Z_PROBE_ENDSTOP_INVERTING = true; // set to true to invert the logic of the endstop.
 const bool X_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of the endstop.
 const bool Y_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of the endstop.
 const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of the endstop.
@@ -498,7 +498,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 
 // default settings
 
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {100.5,100.5,1600,800}  // default steps per unit for LulzBot TAZ
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {100.5,100.5,1600,830}  // default steps per unit for LulzBot TAZ
 #define DEFAULT_MAX_FEEDRATE          {800, 800, 3, 40}    // (mm/sec)
 #define DEFAULT_MAX_ACCELERATION      {9000,9000,100,10000}    // X, Y, Z, E maximum start speed for accelerated moves.
 
