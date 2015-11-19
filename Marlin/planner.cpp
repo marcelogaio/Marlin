@@ -620,7 +620,7 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
   #ifdef RESUME_FEATURE
     if(floor_z(z))
     {
-      current_position[E_AXIS] = e;
+      plan_set_e_position(e);
       return;
     }
   #endif
