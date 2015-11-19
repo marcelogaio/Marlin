@@ -1500,6 +1500,17 @@ void process_commands()
       for(int8_t i=0; i < NUM_AXIS; i++) {
         destination[i] = current_position[i];
       }
+
+       #ifdef Z_RAISE_BEFORE_HOMING
+          destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
+          feedrate = XY_TRAVEL_SPEED/60;
+          current_position[Z_AXIS] = 0;
+          plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+          plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], destination[Z_AXIS], current_position[E_AXIS], feedrate, active_extruder);
+          st_synchronize();
+          destination[Z_AXIS] = 0;
+      #endif
+
       feedrate = 0.0;
 
 #ifdef DELTA
@@ -1644,12 +1655,12 @@ void process_commands()
           if(home_all_axis) {
             destination[X_AXIS] = round(Z_SAFE_HOMING_X_POINT - X_PROBE_OFFSET_FROM_EXTRUDER);
             destination[Y_AXIS] = round(Z_SAFE_HOMING_Y_POINT - Y_PROBE_OFFSET_FROM_EXTRUDER);
-            destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
-            feedrate = XY_TRAVEL_SPEED/60;
-            current_position[Z_AXIS] = 0;
+            //destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
+            feedrate = XY_TRAVEL_SPEED/120;
+            //current_position[Z_AXIS] = 0;
 
             plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-            plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate, active_extruder);
+            plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], current_position[Z_AXIS], destination[E_AXIS], feedrate, active_extruder);
             st_synchronize();
             current_position[X_AXIS] = destination[X_AXIS];
             current_position[Y_AXIS] = destination[Y_AXIS];

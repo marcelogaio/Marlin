@@ -70,6 +70,7 @@ static void lcd_sdcard_menu();
 #ifdef RESUME_FEATURE
   static void lcd_sdcard_resume_menu();
   static void lcd_sdcard_print_menu();
+  bool resume_selected = false;
   extern float planner_disabled_below_z;
   extern float last_z;
   extern bool z_reached;
@@ -984,13 +985,14 @@ static void lcd_sd_updir()
 #ifdef RESUME_FEATURE
   // Print from SD
   void lcd_sdcard_print_menu() {
+    resume_selected = false;
     planner_disabled_below_z = 0;
     lcd_sdcard_menu();
   }
 
   // Print from SD but set flag to ignore movements below a certain Z
   void lcd_sdcard_resume_menu() {
-    planner_disabled_below_z = current_position[Z_AXIS];
+    resume_selected = true;
     last_z = 0;
     z_reached = false;
     layer_reached = false;
@@ -1146,6 +1148,8 @@ static void menu_action_gcode(const char* pgcode) { enquecommand_P(pgcode); }
 static void menu_action_function(menuFunc_t data) { (*data)(); }
 static void menu_action_sdfile(const char* filename, char* longFilename)
 {
+    if(resume_selected)
+        planner_disabled_below_z = current_position[Z_AXIS];
     char cmd[30];
     char* c;
     sprintf_P(cmd, PSTR("M23 %s"), filename);
