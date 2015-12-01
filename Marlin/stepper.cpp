@@ -47,6 +47,7 @@ block_t *current_block;  // A pointer to the block currently being traced
 
 // Variables used by The Stepper Driver Interrupt
 static unsigned char out_bits;        // The next stepping-bits to be output
+static unsigned int cleaning_buffer_counter;
 static long counter_x,       // Counter variables for the bresenham line tracer
             counter_y,
             counter_z,
@@ -320,6 +321,18 @@ FORCE_INLINE void trapezoid_generator_reset() {
 // It pops blocks from the block_buffer and executes them by pulsing the stepper pins appropriately.
 ISR(TIMER1_COMPA_vect)
 {
+  if(cleaning_buffer_counter)
+  {
+    current_block = NULL;
+    plan_discard_current_block();
+    #ifdef SD_FINISHED_RELEASECOMMAND
+      if ((cleaning_buffer_counter == 1) && (SD_FINISHED_STEPPERRELEASE)) enquecommand_P(PSTR(SD_FINISHED_RELEASECOMMAND));
+    #endif
+    cleaning_buffer_counter--;
+    OCR1A = 200;
+    return;
+  }
+
   // If there is no current block, attempt to pop one from the buffer
   if (current_block == NULL) {
     // Anything in the buffer?
@@ -1269,6 +1282,7 @@ void finishAndDisableSteppers()
 
 void quickStop()
 {
+  cleaning_buffer_counter = 5000;
   DISABLE_STEPPER_DRIVER_INTERRUPT();
   while(blocks_queued())
     plan_discard_current_block();

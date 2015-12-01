@@ -41,7 +41,6 @@
 //=============================public variables============================
 //===========================================================================
 int target_temperature[EXTRUDERS] = { 0 };
-float last_target_temperature = 0;
 int target_temperature_bed = 0;
 int current_temperature_raw[EXTRUDERS] = { 0 };
 float current_temperature[EXTRUDERS] = { 0.0 };
@@ -1017,8 +1016,6 @@ void setWatch()
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
 void thermal_runaway_protection(int *state, unsigned long *timer, float temperature, float target_temperature, int heater_id, int period_seconds, int hysteresis_degc)
 {
-  if(target_temperature != last_target_temperature)
-    target_temp_reached = false;
 /*
       SERIAL_ECHO_START;
       SERIAL_ECHO("Thermal Thermal Runaway Running. Heater ID:");
@@ -1031,7 +1028,7 @@ void thermal_runaway_protection(int *state, unsigned long *timer, float temperat
       SERIAL_ECHO(temperature);
       SERIAL_ECHO(" ;  Target Temp:");
       SERIAL_ECHO(target_temperature);
-      SERIAL_ECHOLN("");    
+      SERIAL_ECHOLN("");
 */
   if ((target_temperature == 0) || thermal_runaway)
   {
@@ -1047,17 +1044,18 @@ void thermal_runaway_protection(int *state, unsigned long *timer, float temperat
     case 1: // "First Heating" state
       if (temperature >= target_temperature || TEMP_REACHED)
       {
+        TEMP_REACHED = true;
         *timer = millis();
         *state = 2;
       }
       break;
     case 2: // "Temperature Stable" state
-      if (temperature >= (target_temperature - hysteresis_degc))
+      if (!TEMP_REACHED)
+        *state = 1;
+      else if (temperature >= (target_temperature - hysteresis_degc))
       {
         *timer = millis();
       }
-      else if(!TEMP_REACHED)
-        *state = 1;
       else if ( (millis() - *timer) > ((unsigned long) period_seconds) * 1000)
       {
         SERIAL_ERROR_START;
@@ -1080,7 +1078,6 @@ void thermal_runaway_protection(int *state, unsigned long *timer, float temperat
       }
       break;
   }
-  last_target_temperature = target_temperature;
 }
 #endif
 

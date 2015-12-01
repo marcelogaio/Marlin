@@ -687,10 +687,14 @@ static void lcd_delta_calibrate_menu()
 float move_menu_scale;
 static void lcd_move_menu_axis();
 
+signed char home_dir[] = {X_HOME_DIR, Y_HOME_DIR, Z_HOME_DIR};
+
 static void _lcd_move(const char *name, int axis, int min, int max) {
   if (encoderPosition != 0) {
     refresh_cmd_timeout();
-    current_position[axis] += float((int)encoderPosition) * move_menu_scale;
+    if (    (home_dir[axis] == -1 && (!digitalRead(axis_max_pin[axis])^axis_max_endstop_inverting[axis] || (int)encoderPosition < 0))
+         || (home_dir[axis] == 1 && (!digitalRead(axis_min_pin[axis])^axis_min_endstop_inverting[axis] || (int)encoderPosition > 0)) )
+      current_position[axis] += float((int)encoderPosition) * move_menu_scale;
     if (min_software_endstops && current_position[axis] < min) current_position[axis] = min;
     if (max_software_endstops && current_position[axis] > max) current_position[axis] = max;
     encoderPosition = 0;

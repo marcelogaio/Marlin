@@ -218,6 +218,10 @@ extern float filament_size[EXTRUDERS]; // cross-sectional area of filament (in m
 extern float volumetric_multiplier[EXTRUDERS]; // reciprocal of cross-sectional area of filament (in square millimeters), stored this way to reduce computational burden in planner
 extern float current_position[NUM_AXIS] ;
 extern float add_homing[3];
+const uint8_t axis_max_pin[] = {X_MAX_PIN, Y_MAX_PIN, Z_MAX_PIN};
+const uint8_t axis_min_pin[] = {X_MIN_PIN, Y_MIN_PIN, Z_MIN_PIN};
+const bool axis_max_endstop_inverting[] = {X_MAX_ENDSTOP_INVERTING, Y_MAX_ENDSTOP_INVERTING, Z_MAX_ENDSTOP_INVERTING};
+const bool axis_min_endstop_inverting[] = {X_MIN_ENDSTOP_INVERTING, Y_MIN_ENDSTOP_INVERTING, Z_MIN_ENDSTOP_INVERTING};
 #ifdef DELTA
 extern float endstop_adj[3];
 extern float delta_radius;

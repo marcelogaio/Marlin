@@ -359,8 +359,6 @@ bool change_filament = false;
 #endif
 
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
-const uint8_t axis_max_pin[] = {X_MAX_PIN, Y_MAX_PIN, Z_MAX_PIN};
-const bool axis_max_endstop_inverting[] = {X_MAX_ENDSTOP_INVERTING, Y_MAX_ENDSTOP_INVERTING, Z_MAX_ENDSTOP_INVERTING};
 static float destination[NUM_AXIS] = {  0.0, 0.0, 0.0, 0.0};
 
 #ifndef DELTA
@@ -2713,6 +2711,7 @@ Sigma_Exit:
             SERIAL_PROTOCOLLN("");
             codenum = millis();
           }
+          target_temp_reached = false;
           manage_heater();
           manage_inactivity();
           lcd_update();
@@ -2727,10 +2726,13 @@ Sigma_Exit:
     #if defined(FAN_PIN) && FAN_PIN > -1
       case 106: //M106 Fan On
         if (code_seen('S')){
-           fanSpeed=constrain(code_value(),0,255);
+           fanSpeed=constrain(code_value(),0,400);
+        }
+        if (code_seen('T')){
+           ICR4 = constrain(code_value(),0,400);
         }
         else {
-          fanSpeed=255;
+          fanSpeed=400;
         }
         break;
       case 107: //M107 Fan Off
@@ -4094,7 +4096,12 @@ void get_coordinates()
     if(code_seen(axis_codes[i]))
     {
       float check_destination = (float)code_value() + (axis_relative_modes[i] || relative_mode)*current_position[i];
-      if(i == E_AXIS || check_destination <= current_position[i] || !(digitalRead(axis_max_pin[i])^axis_max_endstop_inverting[i])/* || probing*/)
+      if(    (i == E_AXIS)
+          || (home_dir(i) == -1 && check_destination <= current_position[i])
+          || (home_dir(i) == 1 && check_destination >= current_position[i])
+          || (home_dir(i) == -1 && !digitalRead(axis_max_pin[i])^axis_max_endstop_inverting[i])
+          || (home_dir(i) == 1 && !digitalRead(axis_min_pin[i])^axis_min_endstop_inverting[i])
+        /*|| probing*/ )
         destination[i] = check_destination;
       else
         destination[i] = current_position[i];
@@ -4733,7 +4740,22 @@ void setPwmFrequency(uint8_t pin, int val)
     case TIMER4B:
     case TIMER4C:
          TCCR4B &= ~(_BV(CS40) | _BV(CS41) | _BV(CS42));
-         TCCR4B |= val;
+         TCCR4A &= ~(_BV(WGM41) | _BV(WGM40));
+         TCCR4B &= ~(_BV(WGM42) | _BV(WGM43));
+
+         TCCR4B |= val; //CS42:0 Clock Select - Table 17-6
+
+                          //10
+       //TCCR4A |=   B00000011;
+         TCCR4A &= ~(B00000011);
+                       //32
+         TCCR4B &= ~(B00001000);
+         TCCR4B |=   B00010000;
+
+       //WGM3:0 == B1000 == 8 <- Mode 8 PWM phase and frequency correct
+                               //check atmega2560 datasheet page 145 table 17-2
+
+         ICR4 = 255;
          break;
    #endif
 
