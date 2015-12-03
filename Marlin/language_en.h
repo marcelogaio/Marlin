@@ -14,6 +14,8 @@
 #define MSG_MAIN                            "Main"
 #define MSG_AUTOSTART                       "Autostart"
 #define MSG_AUTO_LEVEL                      "Auto leveling"
+#define MSG_REWIPE                          "Rewiping"
+#define MSG_LEVEL_FAIL                      "PROBE FAIL CLEAN NOZZLE"
 #define MSG_DISABLE_STEPPERS                "Disable steppers"
 #define MSG_AUTO_HOME                       "Auto home"
 #define MSG_SET_HOME_OFFSETS                "Set home offsets"

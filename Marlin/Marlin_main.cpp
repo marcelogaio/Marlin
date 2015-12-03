@@ -1091,6 +1091,8 @@ static void do_blocking_move_to(float x, float y, float z);
 void probing_failed() {
     if(!reprobe_attempts[1])
     {
+      SERIAL_ERRORLNPGM(MSG_REWIPE);
+      LCD_MESSAGEPGM(MSG_REWIPE);
       do_blocking_move_to(-16.0, 25.0, 10.0);
       do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
       for(uint8_t i=0; i<6; i++)
@@ -1111,8 +1113,8 @@ void probing_failed() {
       delay(1000);
       noTone(BEEPER);
       SERIAL_ERROR_START;
-      SERIAL_ERRORLNPGM("Probing failed, clean/wipe nozzle");
-      LCD_ALERTMESSAGEPGM("PROBE FAIL CLEAN NOZZLE");
+      SERIAL_ERRORLNPGM(MSG_LEVEL_FAIL);
+      LCD_ALERTMESSAGEPGM(MSG_LEVEL_FAIL);
       while(1)
       {
         disable_heater();
@@ -1894,11 +1896,11 @@ void process_commands()
                 {
                   // raise before probing
                   z_before = Z_RAISE_BEFORE_PROBING;
+                  LCD_MESSAGEPGM(MSG_AUTO_LEVEL);
                 } else
                 {
                   // raise extruder
                   z_before = current_position[Z_AXIS] + Z_RAISE_BETWEEN_PROBINGS;
-                  LCD_MESSAGEPGM(MSG_AUTO_LEVEL);
                 }
 
                 float measured_z = probe_pt(xProbe, yProbe, z_before);
