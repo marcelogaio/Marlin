@@ -451,7 +451,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
   #ifdef Z_SAFE_HOMING
 
     #define Z_SAFE_HOMING_X_POINT (-19)    // X point for Z homing when homing all axis (G28)
-    #define Z_SAFE_HOMING_Y_POINT (257.8)    // Y point for Z homing when homing all axis (G28)
+    #define Z_SAFE_HOMING_Y_POINT (258)    // Y point for Z homing when homing all axis (G28)
 
   #endif
 
