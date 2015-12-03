@@ -43,8 +43,13 @@ void manage_heater(); //it is critical that this is called periodically.
 // do not use these routines and variables outside of temperature.cpp
 extern int target_temperature[EXTRUDERS];  
 extern float current_temperature[EXTRUDERS];
-extern bool target_temp_reached;
-#define TEMP_REACHED (target_temp_reached)
+#if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
+  #ifdef TEMP_SENSOR_BED
+    extern bool target_temp_reached[EXTRUDERS+1];
+  #else
+    extern bool target_temp_reached[EXTRUDERS];
+  #endif
+#endif
 #ifdef SHOW_TEMP_ADC_VALUES
   extern int current_temperature_raw[EXTRUDERS];
   extern int current_temperature_bed_raw;

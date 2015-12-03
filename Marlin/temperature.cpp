@@ -563,7 +563,7 @@ void manage_heater()
   #if TEMP_SENSOR_BED != 0
   
     #ifdef THERMAL_RUNAWAY_PROTECTION_BED_PERIOD && THERMAL_RUNAWAY_PROTECTION_BED_PERIOD > 0
-      thermal_runaway_protection(&thermal_runaway_bed_state_machine, &thermal_runaway_bed_timer, current_temperature_bed, target_temperature_bed, 9, THERMAL_RUNAWAY_PROTECTION_BED_PERIOD, THERMAL_RUNAWAY_PROTECTION_BED_HYSTERESIS);
+      thermal_runaway_protection(&thermal_runaway_bed_state_machine, &thermal_runaway_bed_timer, current_temperature_bed, target_temperature_bed, EXTRUDERS, THERMAL_RUNAWAY_PROTECTION_BED_PERIOD, THERMAL_RUNAWAY_PROTECTION_BED_HYSTERESIS);
     #endif
 
   #ifdef PIDTEMPBED
@@ -1042,15 +1042,15 @@ void thermal_runaway_protection(int *state, unsigned long *timer, float temperat
       if (target_temperature > 0) *state = 1;
       break;
     case 1: // "First Heating" state
-      if (temperature >= target_temperature || TEMP_REACHED)
+      if (temperature >= target_temperature || target_temp_reached[heater_id])
       {
-        TEMP_REACHED = true;
+        target_temp_reached[heater_id] = true;
         *timer = millis();
         *state = 2;
       }
       break;
     case 2: // "Temperature Stable" state
-      if (!TEMP_REACHED)
+      if (!target_temp_reached[heater_id])
         *state = 1;
       else if (temperature >= (target_temperature - hysteresis_degc))
       {
