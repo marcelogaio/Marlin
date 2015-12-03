@@ -1113,6 +1113,9 @@ void probing_failed() {
     else
     {
       do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 10.0);
+      plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.0, feedrate/60, active_extruder);
+      st_synchronize();
+      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
       tone(BEEPER, 110);
       delay(1000);
       noTone(BEEPER);
