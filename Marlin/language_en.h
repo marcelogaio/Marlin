@@ -110,7 +110,7 @@
 #define MSG_STOP_PRINT                      "Stop print"
 #define MSG_CARD_MENU                       "Print from SD"
 #define MSG_NO_CARD                         "No SD card"
-#define MSG_DWELL                           "Sleep..."
+#define MSG_DWELL                           "Daydreaming..."
 #define MSG_USERWAIT                        "Wait for user..."
 #define MSG_RESUMING                        "Resuming print"
 #define MSG_PRINT_ABORTED                   "Print aborted"
