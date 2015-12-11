@@ -8,6 +8,10 @@ void _EEPROM_writeData(int &pos, uint8_t* value, uint8_t size)
 {
     do
     {
+        //SERIAL_PROTOCOL(int(*value));
+        //SERIAL_ECHOLN("Position: ");
+        //SERIAL_PROTOCOL(pos);
+        //SERIAL_ECHOLN("");
         eeprom_write_byte((unsigned char*)pos, *value);
         pos++;
         value++;
@@ -23,9 +27,40 @@ void _EEPROM_readData(int &pos, uint8_t* value, uint8_t size)
         value++;
     }while(--size);
 }
+
+#ifdef ENABLE_AUTO_BED_LEVELING
+int i_bed_level;
+
+void Config_StoreLevel()
+{
+    int i_bed = i_bed_level;
+    //SERIAL_ECHOLN(i_bed_level);
+    EEPROM_WRITE_VAR(i_bed, plane_equation_coefficients);
+}
+#endif
+
+#ifdef RESUME_FEATURE
+int i_z;
+
+void Config_StoreZ()
+{
+    int i_resume = i_z;
+    //SERIAL_ECHOLN(i_z);
+    EEPROM_WRITE_VAR(i_resume, planner_disabled_below_z);
+}
+
+int i_sd;
+
+void Config_StoreCardPos()
+{
+    int i_sdpos = i_sd;
+    //SERIAL_ECHOLN(i_sd);
+    EEPROM_WRITE_VAR(i_sdpos, sd_position);
+}
+#endif
+
 #define EEPROM_READ_VAR(pos, value) _EEPROM_readData(pos, (uint8_t*)&value, sizeof(value))
 //======================================================================================
-
 
 
 
@@ -38,7 +73,7 @@ void _EEPROM_readData(int &pos, uint8_t* value, uint8_t size)
 // wrong data being written to the variables.
 // ALSO:  always make sure the variables in the Store and retrieve sections are in the same order.
 
-#define EEPROM_VERSION "V13"
+#define EEPROM_VERSION "V15"
 
 #ifdef EEPROM_SETTINGS
 void Config_StoreSettings() 
@@ -116,6 +151,37 @@ void Config_StoreSettings()
   #if EXTRUDERS > 2
   EEPROM_WRITE_VAR(i, filament_size[2]);
   #endif
+  #endif
+  #ifdef ENABLE_AUTO_BED_LEVELING
+  /*
+  SERIAL_ECHO_START;
+  SERIAL_ECHOLNPGM("i: ");
+  SERIAL_ECHO(i);
+  SERIAL_ECHOLNPGM("i_bed_level: ");
+  SERIAL_ECHO(i_bed_level);
+  SERIAL_ECHOLN("");
+  */
+  EEPROM_WRITE_VAR(i,plane_equation_coefficients);
+  #endif
+  #ifdef RESUME_FEATURE
+  /*
+  SERIAL_ECHO_START;
+  SERIAL_ECHOLNPGM("i: ");
+  SERIAL_ECHO(i);
+  SERIAL_ECHOLNPGM("i_z: ");
+  SERIAL_ECHO(i_z);
+  SERIAL_ECHOLN("");
+  */
+  EEPROM_WRITE_VAR(i,planner_disabled_below_z);
+  /*
+  SERIAL_ECHO_START;
+  SERIAL_ECHOLNPGM("i: ");
+  SERIAL_ECHO(i);
+  SERIAL_ECHOLNPGM("i_sd: ");
+  SERIAL_ECHO(i_sd);
+  SERIAL_ECHOLN("");
+  */
+  EEPROM_WRITE_VAR(i,sd_position);
   #endif
   
   char ver2[4]=EEPROM_VERSION;
@@ -265,6 +331,34 @@ SERIAL_ECHOLNPGM("Scaling factors:");
         SERIAL_ECHOLNPGM("Filament settings: Disabled");
     }
 #endif
+#ifdef ENABLE_AUTO_BED_LEVELING
+    SERIAL_ECHO_START;
+    SERIAL_ECHOLNPGM("Eqn coefficients:");
+    SERIAL_ECHO_START;
+    SERIAL_PROTOCOLPGM("a: ");
+    SERIAL_PROTOCOL_F(plane_equation_coefficients[0], 6);
+    SERIAL_PROTOCOLPGM(" b: ");
+    SERIAL_PROTOCOL_F(plane_equation_coefficients[1], 6);
+    SERIAL_PROTOCOLPGM(" d: ");
+    SERIAL_PROTOCOL_F(plane_equation_coefficients[2], 6);
+    SERIAL_ECHOLN("");
+#endif
+#ifdef RESUME_FEATURE
+    SERIAL_ECHO_START;
+    SERIAL_PROTOCOLPGM("Resume from Z:");
+    SERIAL_ECHO_START;
+    SERIAL_PROTOCOLPGM("Z = ");
+    SERIAL_PROTOCOL_F(planner_disabled_below_z, 6);
+    SERIAL_ECHOLN("");
+
+    SERIAL_ECHO_START;
+    SERIAL_PROTOCOLPGM("SD Position:");
+    SERIAL_ECHO_START;
+    SERIAL_PROTOCOLPGM("sdpos = ");
+    SERIAL_PROTOCOL(sd_position);
+    SERIAL_ECHOLN("");
+#endif
+
 }
 #endif
 
@@ -351,6 +445,44 @@ void Config_RetrieveSettings()
 		EEPROM_READ_VAR(i, filament_size[2]);
 #endif
 #endif
+
+                #ifdef ENABLE_AUTO_BED_LEVELING
+                i_bed_level = i;
+                /*
+                SERIAL_ECHO_START;
+                SERIAL_ECHOLNPGM("i: ");
+                SERIAL_ECHO(i);
+                SERIAL_ECHOLNPGM("i_bed_level: ");
+                SERIAL_ECHO(i_bed_level);
+                SERIAL_ECHOLN("");
+                */
+                EEPROM_READ_VAR(i,plane_equation_coefficients);
+                #endif
+
+                #ifdef RESUME_FEATURE
+                i_z = i;
+                /*
+                SERIAL_ECHO_START;
+                SERIAL_ECHOLNPGM("i: ");
+                SERIAL_ECHO(i);
+                SERIAL_ECHOLNPGM("i_z: ");
+                SERIAL_ECHO(i_z);
+                SERIAL_ECHOLN("");
+                */
+                EEPROM_READ_VAR(i,planner_disabled_below_z);
+
+                i_sd = i;
+                /*
+                SERIAL_ECHO_START;
+                SERIAL_ECHOLNPGM("i: ");
+                SERIAL_ECHO(i);
+                SERIAL_ECHOLNPGM("i_z: ");
+                SERIAL_ECHO(i_z);
+                SERIAL_ECHOLN("");
+                */
+                EEPROM_READ_VAR(i,sd_position);
+                #endif
+
 		calculate_volumetric_multipliers();
 		// Call updatePID (similar to when we have processed M301)
 		updatePID();
@@ -451,6 +583,17 @@ void Config_ResetDefault()
 	filament_size[2] = DEFAULT_NOMINAL_FILAMENT_DIA;
 #endif
 #endif
+#ifdef ENABLE_AUTO_BED_LEVELING
+        plane_equation_coefficients[0] = 0.0;
+        plane_equation_coefficients[1] = 0.0;
+        plane_equation_coefficients[2] = 0.0;
+#endif
+#ifdef RESUME_FEATURE
+        planner_disabled_below_z = 0.0;
+
+        sd_position = 0;
+#endif
+
 	calculate_volumetric_multipliers();
 
 SERIAL_ECHO_START;

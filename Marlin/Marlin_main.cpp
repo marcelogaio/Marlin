@@ -353,8 +353,14 @@ const char echomagic[] PROGMEM = "echo:";
 bool change_filament = false;
 #ifdef RESUME_FEATURE
   extern float planner_disabled_below_z;
+  extern bool resume_print;
+  bool sd_position_set = false;
+  bool home_x_and_y;
+  extern uint32_t sd_position;
   extern bool layer_reached;
 #endif //RESUME_FEATURE
+
+double plane_equation_coefficients[3] = {0.0, 0.0, 0.0};
 
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
   #ifdef TEMP_SENSOR_BED
@@ -701,12 +707,33 @@ void loop()
     #endif //SDSUPPORT
     buflen = (buflen-1);
     bufindr = (bufindr + 1)%BUFSIZE;
+    if(resume_print && !sd_position_set && card.getStatus(false) > 10240)
+    {
+      card.setIndex(sd_position-100000);
+      card.getStatus();
+      sd_position_set = true;
+      enquecommand("G27");
+    }
   }
   //check heater every n milliseconds
   manage_heater();
   manage_inactivity();
   checkHitEndstops();
   lcd_update();
+}
+
+bool check_if_sdprinting() {
+  return card.sdprinting;
+}
+
+uint32_t get_sdposition() {
+  return card.getStatus(false);
+}
+
+void clear_buffer() {
+  for(uint8_t i=0; i < BUFSIZE; i++)
+    for(uint8_t j=0; j < MAX_CMD_SIZE; j++)
+      cmdbuffer[i][j] = 0;
 }
 
 void get_command()
@@ -851,6 +878,11 @@ void get_command()
         SERIAL_ECHOLN(time);
         lcd_setstatus(time);
         card.printingHasFinished();
+        resume_print = false;
+        planner_disabled_below_z = 0.0;
+        Config_StoreZ();
+        sd_position = 0;
+        Config_StoreCardPos();
         card.checkautostart(true);
         #ifdef RESUME_FEATURE
           planner_disabled_below_z = 0;
@@ -1036,7 +1068,7 @@ static void axis_is_at_home(int axis) {
 
 #ifdef ENABLE_AUTO_BED_LEVELING
 #ifdef AUTO_BED_LEVELING_GRID
-static void set_bed_level_equation_lsq(double *plane_equation_coefficients)
+static void set_bed_level_equation_lsq(double *plane_equation_coefficients, bool set_zprobe_zoffset = true)
 {
     vector_3 planeNormal = vector_3(-plane_equation_coefficients[0], -plane_equation_coefficients[1], 1);
     planeNormal.debug("planeNormal");
@@ -1053,8 +1085,8 @@ static void set_bed_level_equation_lsq(double *plane_equation_coefficients)
     current_position[Y_AXIS] = corrected_position.y;
     current_position[Z_AXIS] = corrected_position.z;
 
-    // put the bed at 0 so we don't go below it.
-    current_position[Z_AXIS] = zprobe_zoffset; // in the lsq we reach here after raising the extruder due to the loop structure
+    if(set_zprobe_zoffset)  // put the bed at 0 so we don't go below it.
+      current_position[Z_AXIS] = zprobe_zoffset; // in the lsq we reach here after raising the extruder due to the loop structure
 
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
 }
@@ -1098,7 +1130,7 @@ void probing_failed() {
       SERIAL_ERRORLNPGM(MSG_REWIPE);
       LCD_MESSAGEPGM(MSG_REWIPE);
       do_blocking_move_to(-16.0, 25.0, 10.0);
-      do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
+      do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 1.0);
       for(uint8_t i=0; i<6; i++)
       {
         do_blocking_move_to(current_position[X_AXIS], 95.0, current_position[Z_AXIS]);
@@ -1116,8 +1148,8 @@ void probing_failed() {
       plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.0, feedrate/60, active_extruder);
       st_synchronize();
       plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-      tone(BEEPER, 110);
-      delay(1000);
+      tone(BEEPER, 1750);
+      delay(750);
       noTone(BEEPER);
       SERIAL_ERROR_START;
       SERIAL_ERRORLNPGM(MSG_LEVEL_FAIL);
@@ -1502,6 +1534,8 @@ void process_commands()
       break;
 #endif
     case 4: // G4 dwell
+      if (resume_print)
+        return;
       LCD_MESSAGEPGM(MSG_DWELL);
       codenum = 0;
       if(code_seen('P')) codenum = code_value(); // milliseconds to wait
@@ -1533,12 +1567,51 @@ void process_commands()
        #endif 
       break;
       #endif //FWRETRACT
+
+    case 27:
+    {
+      if(code_seen('A'))
+        plane_equation_coefficients[0] = code_value();
+      if(code_seen('B'))
+        plane_equation_coefficients[1] = code_value();
+      if(code_seen('D'))
+        plane_equation_coefficients[2] = code_value();
+
+      SERIAL_PROTOCOLPGM("Eqn coefficients: a: ");
+      SERIAL_PROTOCOL_F(plane_equation_coefficients[0], 6);
+      SERIAL_PROTOCOLPGM(" b: ");
+      SERIAL_PROTOCOL_F(plane_equation_coefficients[1], 6);
+      SERIAL_PROTOCOLPGM(" d: ");
+      SERIAL_PROTOCOL_F(plane_equation_coefficients[2], 6);
+      SERIAL_ECHOLN("");
+
+      set_bed_level_equation_lsq(plane_equation_coefficients, false);
+
+      Config_StoreLevel();
+
+      free(plane_equation_coefficients);
+
+      st_synchronize();
+
+      // The following code correct the Z height difference from z-probe position and hotend tip position.
+      // The Z height on homing is measured by Z-Probe, but the probe is quite far from the hotend.
+      // When the bed is uneven, this height must be corrected.
+      real_z = float(st_get_position(Z_AXIS))/axis_steps_per_unit[Z_AXIS];  //get the real Z (since the auto bed leveling is already correcting the plane)
+      x_tmp = current_position[X_AXIS] + X_PROBE_OFFSET_FROM_EXTRUDER;
+      y_tmp = current_position[Y_AXIS] + Y_PROBE_OFFSET_FROM_EXTRUDER;
+      z_tmp = current_position[Z_AXIS];
+
+      apply_rotation_xyz(plan_bed_level_matrix, x_tmp, y_tmp, z_tmp);         //Apply the correction sending the probe offset
+      current_position[Z_AXIS] = z_tmp - real_z + current_position[Z_AXIS];   //The difference is added to current position and sent to planner.
+      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+
+      break;
+    }
+
     case 28: //G28 Home all Axis one at a time
-
       #ifdef RESUME_FEATURE
-        if (planner_disabled_below_z) return; // Disable homing if resuming print
+        if (resume_print) return; // Disable homing if resuming print
       #endif //RESUME_FEATURE
-
 #ifdef ENABLE_AUTO_BED_LEVELING
       plan_bed_level_matrix.set_to_identity();  //Reset the plane ("erase" all leveling data)
 #endif //ENABLE_AUTO_BED_LEVELING
@@ -1560,7 +1633,7 @@ void process_commands()
       }
 
        #ifdef Z_RAISE_BEFORE_HOMING
-          if(current_position[Z_AXIS] < 10)
+          if(current_position[Z_AXIS] < 10 && !home_x_and_y)
           {
             destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
             feedrate = XY_TRAVEL_SPEED/60;
@@ -1716,7 +1789,7 @@ void process_commands()
             HOMEAXIS(Z);
           }
         #else                      // Z Safe mode activated.
-          if(home_all_axis) {
+          if(home_all_axis && !home_x_and_y) {
             destination[X_AXIS] = round(Z_SAFE_HOMING_X_POINT - X_PROBE_OFFSET_FROM_EXTRUDER);
             destination[Y_AXIS] = round(Z_SAFE_HOMING_Y_POINT - Y_PROBE_OFFSET_FROM_EXTRUDER);
             //destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
@@ -1732,7 +1805,7 @@ void process_commands()
             HOMEAXIS(Z);
           }
                                                 // Let's see if X and Y are homed and probe is inside bed area.
-          if(code_seen(axis_codes[Z_AXIS]) && !home_all_axis) {
+          if(code_seen(axis_codes[Z_AXIS]) && !home_all_axis && !home_x_and_y) {
             if ( (axis_known_position[X_AXIS]) && (axis_known_position[Y_AXIS]) \
               && (current_position[X_AXIS]+X_PROBE_OFFSET_FROM_EXTRUDER >= X_MIN_POS) \
               && (current_position[X_AXIS]+X_PROBE_OFFSET_FROM_EXTRUDER <= X_MAX_POS) \
@@ -1763,7 +1836,7 @@ void process_commands()
       plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
       
       #ifdef Z_RAISE_AFTER_HOMING
-          if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
+          if(((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) && !home_x_and_y) {
               destination[Z_AXIS] = Z_RAISE_AFTER_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
               feedrate = max_feedrate[Z_AXIS];
               plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], destination[Z_AXIS], current_position[E_AXIS], feedrate, active_extruder);
@@ -1772,7 +1845,7 @@ void process_commands()
       #endif
 
       #ifdef Z_RAISE_AFTER_HOMING
-        if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
+        if(((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) && !home_x_and_y) {
         current_position[Z_AXIS] += Z_RAISE_AFTER_HOMING - Z_MIN_POS; //Sets Z distance back to 0 for auto leveling
 	    }
       #endif
@@ -1783,7 +1856,7 @@ void process_commands()
         }
       #endif
       */
-      if(code_seen(axis_codes[Z_AXIS])) {
+      if(code_seen(axis_codes[Z_AXIS]) && !home_x_and_y) {
         if(code_value_long() != 0) {
           current_position[Z_AXIS]=code_value()+add_homing[Z_AXIS];
         }
@@ -1810,6 +1883,17 @@ void process_commands()
       endstops_hit_on_purpose();
       //set endstop switch trigger back to std period
       endstop_trig_period = STD_ENDSTOP_PERIOD;
+      if(home_x_and_y)
+      {
+        do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
+        current_position[Z_AXIS] = 0.05;
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+        do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
+        current_position[Z_AXIS] = planner_disabled_below_z;
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+        axis_known_position[Z_AXIS] = true;
+        resume_print = true;
+      }
       MYSERIAL.flush();
       break;
 
@@ -1817,7 +1901,7 @@ void process_commands()
     case 29: // G29 Detailed Z-Probe, probes the bed at 3 or more points.
         {
             #ifdef RESUME_FEATURE
-              if (planner_disabled_below_z) return; // Disable probing if resuming print
+              if (resume_print) return; // Disable probing if resuming print
             #endif
 
             #ifdef ENABLE_AUTO_BED_LEVELING
@@ -1932,7 +2016,11 @@ void process_commands()
             clean_up_after_endstop_move();
 
             // solve lsq problem
-            double *plane_equation_coefficients = qr_solve(AUTO_BED_LEVELING_GRID_POINTS*AUTO_BED_LEVELING_GRID_POINTS, 3, eqnAMatrix, eqnBVector);
+            double *plane_equation_coefficients_tmp = qr_solve(AUTO_BED_LEVELING_GRID_POINTS*AUTO_BED_LEVELING_GRID_POINTS, 3, eqnAMatrix, eqnBVector);
+
+            plane_equation_coefficients[0] = plane_equation_coefficients_tmp[0];
+            plane_equation_coefficients[1] = plane_equation_coefficients_tmp[1];
+            plane_equation_coefficients[2] = plane_equation_coefficients_tmp[2];
 
             SERIAL_PROTOCOLPGM("Eqn coefficients: a: ");
             SERIAL_PROTOCOL(plane_equation_coefficients[0]);
@@ -1944,6 +2032,9 @@ void process_commands()
 
             set_bed_level_equation_lsq(plane_equation_coefficients);
 
+            Config_StoreLevel();
+
+            free(plane_equation_coefficients_tmp);
             free(plane_equation_coefficients);
 
 #else // AUTO_BED_LEVELING_GRID not defined
@@ -1991,6 +2082,7 @@ void process_commands()
               current_layer = 0;
               last_layer_z = 0;
             #endif //TRACK_LAYER
+            MYSERIAL.flush();
         }
         break;
 #ifndef Z_PROBE_SLED
@@ -2129,18 +2221,35 @@ void process_commands()
 
 #ifdef RESUME_FEATURE
     case 19: // M19 - resume from Z
-      if (code_seen('Z')) {
+      if (code_seen('Z') && axis_known_position[Z_AXIS]) {
         get_coordinates(); // For Z
         prepare_move();
+        st_synchronize();
         enquecommand("M114"); // tell the host where it is
+        enquecommand("G27");
+        resume_print = true;
       }
-
-      if (current_position[Z_AXIS] > 0) {
+      /*
+      else if (current_position[Z_AXIS] != 10 && current_position[Z_AXIS] != 0 && axis_known_position[Z_AXIS]) {
         planner_disabled_below_z = current_position[Z_AXIS];
 
         SERIAL_PROTOCOLPGM("Resume from Z = ");
         SERIAL_PROTOCOL(planner_disabled_below_z);
         SERIAL_PROTOCOLPGM(" mm\n");
+        resume_print = true;
+      }
+      */
+      else if (planner_disabled_below_z > 0 && /* current_position[Z_AXIS] == 0 && */ (!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS]))
+      {
+        home_x_and_y = true;
+        enquecommand("G28");
+        enquecommand("G27");
+      }
+      else if (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
+      {
+        do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], planner_disabled_below_z);
+        resume_print = true;
+        enquecommand("G27");
       }
       else
         SERIAL_PROTOCOLPGM("Error: Resume from Z <= 0\n");
@@ -2185,7 +2294,7 @@ void process_commands()
       }
       break;
     case 27: //M27 - Get SD status
-      card.getStatus();
+      sd_position = card.getStatus();
       break;
     case 28: //M28 - Start SD write
       starpos = (strchr(strchr_pointer + 4,'*'));
@@ -2676,6 +2785,8 @@ Sigma_Exit:
       #endif
       if (code_seen('S')) {
         setTargetHotend(code_value(), tmp_extruder);
+        if (resume_print && degTargetHotend(tmp_extruder) < (degHotend(tmp_extruder) - 10))
+          return;
 #ifdef DUAL_X_CARRIAGE
         if (dual_x_carriage_mode == DXC_DUPLICATION_MODE && tmp_extruder == 0)
           setTargetHotend1(code_value() == 0.0 ? 0.0 : code_value() + duplicate_extruder_temp_offset);
@@ -2765,7 +2876,8 @@ Sigma_Exit:
 #endif
       }
       break;
-    case 190: // M190 - Wait for bed heater to reach target.
+    case 190:
+    {// M190 - Wait for bed heater to reach target.
     #if defined(TEMP_BED_PIN) && TEMP_BED_PIN > -1
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
         target_temp_reached[EXTRUDERS] = false;
@@ -2782,9 +2894,16 @@ Sigma_Exit:
         
         cancel_heatup = false;
         target_direction = isHeatingBed(); // true if heating, false if cooling
-
-        while ( (target_direction)&&(!cancel_heatup) ? (isHeatingBed()) : (isCoolingBed()&&(CooldownNoWait==false)) )
-        {
+        #ifdef TEMP_RESIDENCY_TIME
+          long residencyBedStart;
+          residencyBedStart = -1;
+          /* continue to loop until we have reached the target temp
+            _and_ until TEMP_BED_RESIDENCY_TIME hasn't passed since we reached it */
+          while((!cancel_heatup)&&((residencyBedStart == -1) ||
+                 (residencyBedStart >= 0 && (((unsigned int) (millis() - residencyBedStart)) < (TEMP_BED_RESIDENCY_TIME * 1000UL)))) ) {
+        #else
+          while ( (target_direction)&&(!cancel_heatup) ? (isHeatingBed()) : (isCoolingBed()&&(CooldownNoWait==false)) ) {
+        #endif
           if(( millis() - codenum) > 1000 ) //Print Temp Reading every 1 second while heating up.
           {
             float tt=degHotend(active_extruder);
@@ -2794,7 +2913,20 @@ Sigma_Exit:
             SERIAL_PROTOCOL((int)active_extruder);
             SERIAL_PROTOCOLPGM(" B:");
             SERIAL_PROTOCOL_F(degBed(),1);
-            SERIAL_PROTOCOLLN("");
+            #ifdef TEMP_RESIDENCY_TIME
+              SERIAL_PROTOCOLPGM(" W:");
+              if(residencyBedStart > -1)
+              {
+                 codenum = ((TEMP_BED_RESIDENCY_TIME * 1000UL) - (millis() - residencyBedStart)) / 1000UL;
+                 SERIAL_PROTOCOLLN( codenum );
+              }
+              else
+              {
+                 SERIAL_PROTOCOLLN( "?" );
+              }
+            #else
+              SERIAL_PROTOCOLLN("");
+            #endif
             codenum = millis();
           }
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
@@ -2803,6 +2935,16 @@ Sigma_Exit:
           manage_heater();
           manage_inactivity();
           lcd_update();
+          #ifdef TEMP_RESIDENCY_TIME
+              /* start/restart the TEMP_RESIDENCY_TIME timer whenever we reach target temp for the first time
+                or when current temp falls outside the hysteresis after target temp was reached */
+            if ((residencyBedStart == -1 &&  target_direction && (degBed() >= (degTargetBed()-TEMP_BED_WINDOW))) ||
+                (residencyBedStart == -1 && !target_direction && (degBed() <= (degTargetBed()+TEMP_BED_WINDOW))) ||
+                (residencyBedStart > -1 && labs(degBed() - degTargetBed()) > TEMP_BED_HYSTERESIS) )
+            {
+              residencyBedStart = millis();
+            }
+          #endif //TEMP_RESIDENCY_TIME
         }
         LCD_MESSAGEPGM(MSG_BED_DONE);
         previous_millis_cmd = millis();
@@ -2811,18 +2953,22 @@ Sigma_Exit:
         target_temp_reached[EXTRUDERS] = true;
 #endif
     #endif
+        }
         break;
 
     #if defined(FAN_PIN) && FAN_PIN > -1
       case 106: //M106 Fan On
-        if (code_seen('S')){
-           fanSpeed=constrain(code_value(),0,400);
+        if (code_seen('T')){
+           ICR4 = constrain(code_value(),0,400);
+           if (code_seen('S')){
+             fanSpeed=constrain(code_value(),0,400);
+           }
+        }
+        else if (code_seen('S')){
+           fanSpeed=constrain(code_value(),0,255);
         }
         else {
           fanSpeed=400;
-        }
-        if (code_seen('T')){
-           ICR4 = constrain(code_value(),0,400);
         }
         break;
       case 107: //M107 Fan Off
@@ -4042,7 +4188,7 @@ case 404:  //M404 Enter the nominal filament width (3mm, 1.75mm ) N<3.0> or disp
   }
 
   #ifdef RESUME_FEATURE
-    else if (!planner_disabled_below_z || layer_reached);
+    else if (resume_print && !layer_reached);
   #endif
   else if(code_seen('T'))
   {

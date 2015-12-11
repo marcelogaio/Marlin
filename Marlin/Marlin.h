@@ -177,6 +177,10 @@ enum AxisEnum {X_AXIS=0, Y_AXIS=1, Z_AXIS=2, E_AXIS=3, X_HEAD=4, Y_HEAD=5};
 void FlushSerialRequestResend();
 void ClearToSend();
 
+bool check_if_sdprinting();
+uint32_t get_sdposition();
+void clear_buffer();
+
 void get_coordinates();
 #ifdef DELTA
 void calculate_delta(float cartesian[3]);
@@ -236,8 +240,11 @@ extern float min_pos[3];
 extern float max_pos[3];
 extern bool axis_known_position[3];
 extern float zprobe_zoffset;
+extern double plane_equation_coefficients[3];
 #ifdef RESUME_FEATURE
   extern float planner_disabled_below_z;
+  extern bool resume_print;
+  extern uint32_t sd_position;
 #endif
 #ifdef TRACK_LAYER
   extern float last_layer_z;

@@ -71,6 +71,7 @@ static void lcd_sdcard_menu();
   static void lcd_sdcard_resume_menu();
   static void lcd_sdcard_print_menu();
   bool resume_selected = false;
+  bool resume_print = false;
   extern float planner_disabled_below_z;
   extern float last_z;
   extern bool z_reached;
@@ -330,18 +331,26 @@ static void lcd_sdcard_resume() { card.startFileprint(); }
 
 static void lcd_sdcard_stop()
 {
+    quickStop();
     card.sdprinting = false;
     card.closefile();
-    quickStop();
+    resume_print = false;
     if(SD_FINISHED_STEPPERRELEASE)
     {
         enquecommand_P(PSTR(SD_FINISHED_RELEASECOMMAND));
     }
     autotempShutdown();
 
+        disable_heater();
+
 	cancel_heatup = true;
 
-	lcd_setstatus(MSG_PRINT_ABORTED);
+	LCD_ALERTMESSAGEPGM(MSG_PRINT_ABORTED);
+
+        for(int i=0; i<EXTRUDERS; i++) target_temp_reached[i] = false;
+
+    MYSERIAL.flush();
+    clear_buffer(); //clear buffer
 
     #ifdef RESUME_FEATURE
       planner_disabled_below_z = 0;
@@ -377,7 +386,7 @@ static void lcd_main_menu()
         }else if (!movesplanned() && !IS_SD_PRINTING){
           #ifdef RESUME_FEATURE
             MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_print_menu);
-            if (current_position[Z_AXIS] > 0 && current_position[Z_AXIS] != Z_RAISE_AFTER_HOMING)
+            if (sd_position > 0 /*&& current_position[Z_AXIS] > 0 && current_position[Z_AXIS] != Z_RAISE_AFTER_HOMING*/)
               MENU_ITEM(submenu, MSG_CARD_RESUME_MENU, lcd_sdcard_resume_menu);
           #endif //RESUME_FEATURE
 #if SDCARDDETECT < 1
@@ -990,6 +999,7 @@ static void lcd_sd_updir()
   // Print from SD
   void lcd_sdcard_print_menu() {
     resume_selected = false;
+    resume_print = false;
     planner_disabled_below_z = 0;
     lcd_sdcard_menu();
   }
@@ -1153,7 +1163,14 @@ static void menu_action_function(menuFunc_t data) { (*data)(); }
 static void menu_action_sdfile(const char* filename, char* longFilename)
 {
     if(resume_selected)
-        planner_disabled_below_z = current_position[Z_AXIS];
+    {
+        /*
+        if(current_position[Z_AXIS] != 0 && current_position[Z_AXIS] != 10 && current_position[Z_AXIS] != planner_disabled_below_z)
+          planner_disabled_below_z = current_position[Z_AXIS];
+        */
+        enquecommand("M19");
+        //enquecommand("G27");
+    }
     char cmd[30];
     char* c;
     sprintf_P(cmd, PSTR("M23 %s"), filename);

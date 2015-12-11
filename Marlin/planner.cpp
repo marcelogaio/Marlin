@@ -55,6 +55,7 @@
 #include "planner.h"
 #include "stepper.h"
 #include "temperature.h"
+#include "ConfigurationStore.h"
 #include "ultralcd.h"
 #include "language.h"
 
@@ -76,6 +77,7 @@ float mintravelfeedrate;
 unsigned long axis_steps_per_sqr_second[NUM_AXIS];
 #ifdef RESUME_FEATURE
   float planner_disabled_below_z = 0;
+  uint32_t sd_position = 0;
   float last_z = 0;
   bool z_reached = false;
   bool layer_reached = false;
@@ -523,8 +525,79 @@ void check_axes_activity()
   #else
   if(tail_fan_speed == 0)
     digitalWrite(FAN_PIN, LOW);
+  else if(tail_fan_speed == 255)
+    digitalWrite(FAN_PIN, HIGH);
   else
   {
+  /*if(fanSpeed > 0 && fanSpeed <= 85)
+    {
+      ICR4 = -fanSpeed + 130;
+      //SERIAL_PROTOCOL(ICR4);
+      //ICR4 = 130 ~ 40
+      tail_fan_speed = 2;
+    }*/
+/*else*/if(fanSpeed > 0 && fanSpeed <= 180)
+    {
+      ICR4 = -fanSpeed + 330;
+      //SERIAL_PROTOCOL(ICR4);
+      //ICR4 = 330 ~ 120;
+      tail_fan_speed = 3;
+    }
+    else if(fanSpeed > 180 && fanSpeed <= 223)
+    {
+      ICR4 = -5*fanSpeed + 1300; // = 400 - 5(fanSpeed-180)
+      //SERIAL_PROTOCOL(ICR4);
+      //ICR4 = 400 ~ 180;
+      tail_fan_speed = 4;
+    }
+    else if(fanSpeed > 223 && fanSpeed <= 247)
+    {
+      ICR4 = -8*fanSpeed + 2184; // = 400 - 8(fanSpeed-223)
+      //SERIAL_PROTOCOL(ICR4);
+      //ICR4 = 400 ~ 200;
+      tail_fan_speed = 5;
+    }
+    else if(fanSpeed == 248)
+    {
+      ICR4 = 350; // 360 fails ?
+      tail_fan_speed = 6;
+    }
+    else if(fanSpeed == 249)
+    {
+      ICR4 = 255;
+      tail_fan_speed = 6;
+    }
+    else if(fanSpeed == 250)
+    {
+      ICR4 = 255;
+      tail_fan_speed = 7;
+    }
+    else if(fanSpeed == 251)
+    {
+      ICR4 = 255;
+      tail_fan_speed = 64;
+    }
+    else if(fanSpeed == 252)
+    {
+      ICR4 = 255;
+      tail_fan_speed = 128;
+    }
+    else if(fanSpeed == 253)
+    {
+      ICR4 = 255;
+      tail_fan_speed = 160;
+    }
+    else if(fanSpeed == 254)
+    {
+      ICR4 = 255;
+      tail_fan_speed = 192;
+    }
+    else if(fanSpeed == 255)
+    {
+      ICR4 = 255;
+      tail_fan_speed = 255;
+    }
+
     //analogWrite(FAN_PIN,tail_fan_speed);
     sbi(TCCR4A, COM4C1);
     OCR4C = tail_fan_speed; // set pwm duty
@@ -547,40 +620,58 @@ void check_axes_activity()
 }
 
 #ifdef RESUME_FEATURE
+
   bool floor_z(const float &z)
   {
-    // filter out moves below a given floor height and attempt to ignore any hops/travels
-    if (planner_disabled_below_z && !layer_reached) {
-      if (z < planner_disabled_below_z) {
-        if (z > last_z && !gone_up) // up once
-          gone_up = true;
-        else if (z < last_z) { // back down
-          hops = true;
-          gone_up = false;
+    if(resume_print)
+    {
+      if(check_if_sdprinting() && get_sdposition() > sd_position)
+      {
+        resume_print = false;
+        return false;
+      }
+      else if(check_if_sdprinting() && get_sdposition() < sd_position)
+      {
+        return true;
+      }
+      // filter out moves below a given floor height and attempt to ignore any hops/travels
+      if (planner_disabled_below_z > 0.0 && !layer_reached) {
+        if (z < planner_disabled_below_z) {
+          if (z > last_z && !gone_up) // up once
+            gone_up = true;
+          else if (z < last_z) { // back down
+            hops = true;
+            gone_up = false;
+          }
+          else if (z > last_z && gone_up) // up twice
+            hops = false;
+          z_reached = false;
+          last_z = z;
+          return true;
         }
-        else if (z > last_z && gone_up) // up twice
-          hops = false;
+        else if (hops && !z_reached) {
+          z_reached = true;
+          last_z = z;
+          return true;
+        }
+        else if (hops && z == last_z)
+          return true;
+        else
+          layer_reached = true;
+      }
+      else if (planner_disabled_below_z && z < planner_disabled_below_z) {
         z_reached = false;
-        last_z = z;
+        layer_reached = false;
         return true;
       }
-      else if (hops && !z_reached) {
-        z_reached = true;
-        last_z = z;
-        return true;
-      }
-      else if (hops && z == last_z)
-        return true;
       else
-        layer_reached = true;
+      {
+        if (z != Z_RAISE_AFTER_HOMING)
+          resume_print = false;
+        return false;
+      }
     }
-    else if (planner_disabled_below_z && z < planner_disabled_below_z) {
-      z_reached = false;
-      layer_reached = false;
-      return true;
-    }
-    else
-      return false;
+    return false;
   }
 #endif //RESUME_FEATURE
 
@@ -591,11 +682,20 @@ void check_axes_activity()
       gone_up = true;
     else if (z < last_z) { // back down
       if (z > last_layer_z)
+      {
         #ifdef INCREASE_LAYER_ON_HOP
           current_layer++;
+          #ifdef RESUME_FEATURE
+            if(!resume_print)
+            {
+              planner_disabled_below_z = z - 0.05;
+              Config_StoreZ();
+            }
+          #endif
         #else
           ;
         #endif
+      }
       else if (z < last_layer_z && z != 0)
         current_layer = 1; // if it goes lower than what we would think was the previous layer then we might as well assume it's printing another object
       else if (z == 0)
@@ -604,7 +704,21 @@ void check_axes_activity()
       gone_up = false;
     }
     else if (z > last_z && gone_up) // up twice
+    {
       current_layer++; // be careful with prints like the spiral vase
+      #ifdef RESUME_FEATURE
+        if(!resume_print)
+        {
+          planner_disabled_below_z = z - 0.05;
+          Config_StoreZ();
+        }
+        if(check_if_sdprinting() && get_sdposition() > 10240 && get_sdposition() > sd_position)
+        {
+          sd_position = get_sdposition();
+          Config_StoreCardPos();
+        }
+      #endif
+    }
 
     last_z = z;
   }

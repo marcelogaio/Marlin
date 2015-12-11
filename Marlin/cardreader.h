@@ -25,7 +25,7 @@ public:
   void release();
   void startFileprint();
   void pauseSDPrint();
-  void getStatus();
+  uint32_t getStatus(bool printstatus = true);
   void printingHasFinished();
 
   void getfilename(uint16_t nr, const char* const match=NULL);
