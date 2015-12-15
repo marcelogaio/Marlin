@@ -59,6 +59,15 @@ void Config_StoreCardPos()
 }
 #endif
 
+int i_zoffset;
+
+void Config_StoreZOffset()
+{
+    int i_zprobe = i_zoffset;
+    //SERIAL_ECHOLN(i_zoffset);
+    EEPROM_WRITE_VAR(i_zprobe, zprobe_zoffset);
+}
+
 #define EEPROM_READ_VAR(pos, value) _EEPROM_readData(pos, (uint8_t*)&value, sizeof(value))
 //======================================================================================
 
@@ -406,6 +415,7 @@ void Config_RetrieveSettings()
         EEPROM_READ_VAR(i,absPreheatHotendTemp);
         EEPROM_READ_VAR(i,absPreheatHPBTemp);
         EEPROM_READ_VAR(i,absPreheatFanSpeed);
+        i_zoffset = i;
         EEPROM_READ_VAR(i,zprobe_zoffset);
         #ifndef PIDTEMP
         float Kp,Ki,Kd;

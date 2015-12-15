@@ -73,6 +73,7 @@ unsigned char soft_pwm_bed;
   
 #ifdef BABYSTEPPING
   volatile int babystepsTodo[3]={0,0,0};
+  volatile bool offset_up = true;
 #endif
 
 #ifdef FILAMENT_SENSOR
@@ -1749,12 +1750,14 @@ ISR(TIMER0_COMPB_vect)
    
     if(curTodo>0)
     {
+      offset_up = true;
       babystep(axis,/*fwd*/true);
       babystepsTodo[axis]--; //less to do next time
     }
     else
     if(curTodo<0)
     {
+      offset_up = false;
       babystep(axis,/*fwd*/false);
       babystepsTodo[axis]++; //less to do next time
     }

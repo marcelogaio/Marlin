@@ -1886,7 +1886,7 @@ void process_commands()
       if(home_x_and_y)
       {
         do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
-        current_position[Z_AXIS] = 0.05;
+        current_position[Z_AXIS] = 1.0/(axis_steps_per_unit[Z_AXIS]);
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
         do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
         current_position[Z_AXIS] = planner_disabled_below_z;

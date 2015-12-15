@@ -16,12 +16,14 @@ void Config_StoreSettings();
 void Config_StoreLevel();
 void Config_StoreZ();
 void Config_StoreCardPos();
+void Config_StoreZOffset();
 void Config_RetrieveSettings();
 #else
 FORCE_INLINE void Config_StoreSettings() {}
 FORCE_INLINE void Config_StoreLevel() {}
 FORCE_INLINE void Config_StoreZ() {}
 FORCE_INLINE void Config_StoreCardPos() {}
+FORCE_INLINE void Config_StoreZOffset() {}
 FORCE_INLINE void Config_RetrieveSettings() { Config_ResetDefault(); Config_PrintSettings(); }
 #endif
 

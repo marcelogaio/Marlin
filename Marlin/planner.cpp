@@ -688,7 +688,7 @@ void check_axes_activity()
           #ifdef RESUME_FEATURE
             if(!resume_print)
             {
-              planner_disabled_below_z = z - 0.05;
+              planner_disabled_below_z = z - 1.0/(axis_steps_per_unit[Z_AXIS]);
               Config_StoreZ();
             }
           #endif
@@ -709,7 +709,7 @@ void check_axes_activity()
       #ifdef RESUME_FEATURE
         if(!resume_print)
         {
-          planner_disabled_below_z = z - 0.05;
+          planner_disabled_below_z = z - 1.0/(axis_steps_per_unit[Z_AXIS]);
           Config_StoreZ();
         }
         if(check_if_sdprinting() && get_sdposition() > 10240 && get_sdposition() > sd_position)

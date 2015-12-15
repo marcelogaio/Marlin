@@ -23,6 +23,10 @@ int absPreheatFanSpeed;
   unsigned long message_millis = 0;
 #endif
 
+#ifdef BABYSTEPPING
+  bool z_offsetting = false;
+#endif
+
 #ifdef ULTIPANEL
   static float manual_feedrate[] = MANUAL_FEEDRATE;
 #endif // ULTIPANEL
@@ -430,19 +434,53 @@ void lcd_set_home_offsets()
 
 
 #ifdef BABYSTEPPING
-
   static void _lcd_babystep(int axis, const char *msg) {
-    if (encoderPosition != 0) {
+    if (/*encoderPosition != 0 && */((int)encoderPosition < 0 || 1.000 < zprobe_zoffset) && (zprobe_zoffset < 2.000 || (int)encoderPosition > 0)) {
       babystepsTodo[axis] += (int)encoderPosition;
+      zprobe_zoffset -= (int)encoderPosition/axis_steps_per_unit[Z_AXIS];
       encoderPosition = 0;
+      z_offsetting = true;
       lcdDrawUpdate = 1;
     }
-    if (lcdDrawUpdate) lcd_implementation_drawedit(msg, "");
-    if (LCD_CLICKED) lcd_goto_menu(lcd_tune_menu);
+    if (lcdDrawUpdate && axis != Z_AXIS) lcd_implementation_drawedit(msg, "");
+    else if (lcdDrawUpdate && axis == Z_AXIS)
+    {
+      lcd_implementation_drawedit(msg, ftostr43(-1.0*zprobe_zoffset));
+      uint8_t noz_pos = 12*(zprobe_zoffset - 1.0);
+      u8g.drawBitmapP(66,noz_pos,2,12,nozzle_bmp);
+      u8g.drawBitmapP(60,24,3,1,offset_bedline_bmp);
+      u8g.drawBitmapP(1,47,3,16,cw_bmp);
+      u8g.drawStr(24,60,"Z");
+      u8g.drawBitmapP(31,51,2,10,up_arrow_bmp);
+      u8g.drawBitmapP(80,47,3,16,ccw_bmp);
+      u8g.drawStr(110,60,"Z");
+      u8g.drawBitmapP(116,49,2,10,down_arrow_bmp);
+      if (offset_up)
+      {
+        u8g.setColorIndex(0);
+        u8g.drawBox(31,46,16,13);
+        u8g.setColorIndex(1);
+        u8g.drawBitmapP(31,48,2,13,longup_arrow_bmp);
+      }
+      else
+      {
+        u8g.setColorIndex(0);
+        u8g.drawBox(116,49,16,13);
+        u8g.setColorIndex(1);
+        u8g.drawBitmapP(116,49,2,13,longdown_arrow_bmp);
+      }
+    }
+    if (LCD_CLICKED)
+    {
+      z_offsetting = false;
+      Config_StoreZOffset();
+      lcd_goto_menu(lcd_control_advanced_menu);
+    }
   }
   static void lcd_babystep_x() { _lcd_babystep(X_AXIS, PSTR(MSG_BABYSTEPPING_X)); }
   static void lcd_babystep_y() { _lcd_babystep(Y_AXIS, PSTR(MSG_BABYSTEPPING_Y)); }
   static void lcd_babystep_z() { _lcd_babystep(Z_AXIS, PSTR(MSG_BABYSTEPPING_Z)); }
+  static void lcd_babystep_zoffset() { _lcd_babystep(Z_AXIS, PSTR(MSG_ZPROBE_ZOFFSET)); }
 
 #endif //BABYSTEPPING
 
@@ -480,10 +518,10 @@ static void lcd_tune_menu()
 
 #ifdef BABYSTEPPING
     #ifdef BABYSTEP_XY
-      MENU_ITEM(submenu, MSG_BABYSTEP_X, lcd_babystep_x);
-      MENU_ITEM(submenu, MSG_BABYSTEP_Y, lcd_babystep_y);
+      //MENU_ITEM(submenu, MSG_BABYSTEP_X, lcd_babystep_x);
+      //MENU_ITEM(submenu, MSG_BABYSTEP_Y, lcd_babystep_y);
     #endif //BABYSTEP_XY
-    MENU_ITEM(submenu, MSG_BABYSTEP_Z, lcd_babystep_z);
+    //MENU_ITEM(submenu, MSG_BABYSTEP_Z, lcd_babystep_z);
 #endif
 #ifdef FILAMENTCHANGEENABLE
      MENU_ITEM(gcode, MSG_FILAMENTCHANGE, PSTR("M600"));
@@ -889,7 +927,8 @@ static void lcd_control_advanced_menu()
     START_MENU();
     MENU_ITEM(back, MSG_CONFIGURATION, lcd_configuration_menu);
 #ifdef ENABLE_AUTO_BED_LEVELING
-    MENU_ITEM_EDIT(float32, MSG_ZPROBE_ZOFFSET, &zprobe_zoffset, 0.5, 50);
+    //MENU_ITEM_EDIT(float43, MSG_ZPROBE_ZOFFSET, &zprobe_zoffset, 0.5, 2.5);
+    MENU_ITEM(submenu, MSG_ZPROBE_ZOFFSET, lcd_babystep_zoffset);
 #endif
     MENU_ITEM_EDIT(float5, MSG_ACC, &acceleration, 500, 99000);
     MENU_ITEM_EDIT(float3, MSG_VXY_JERK, &max_xy_jerk, 1, 990);
@@ -1332,6 +1371,17 @@ void lcd_update()
             u8g.drawPixel(127,63); // draw alive dot
             u8g.setColorIndex(1); // black on white
             (*currentMenu)();
+            #ifdef BABYSTEPPING
+            if(z_offsetting && timeoutToStatus-14000 < millis())
+            {
+              u8g.setColorIndex(0);
+              u8g.drawBox(31,48,16,13);
+              u8g.drawBox(116,49,16,13);
+              u8g.setColorIndex(1);
+              u8g.drawBitmapP(31,51,2,10,up_arrow_bmp);
+              u8g.drawBitmapP(116,49,2,10,down_arrow_bmp);
+            }
+            #endif
             if (!lcdDrawUpdate)  break; // Terminate display update, when nothing new to draw. This must be done before the last dogm.next()
         } while( u8g.nextPage() );
 #else
@@ -1347,6 +1397,7 @@ void lcd_update()
         {
             lcd_return_to_status();
             lcdDrawUpdate = 2;
+            z_offsetting = false;
         }
 #endif//ULTIPANEL
         if (lcdDrawUpdate == 2) lcd_implementation_clear();
@@ -1591,18 +1642,29 @@ char *ftostr32(const float &x)
 // Convert float to string with 1.234 format
 char *ftostr43(const float &x)
 {
-	long xx = x * 1000;
+    long xx = x * 1000;
     if (xx >= 0)
-		conv[0] = (xx / 1000) % 10 + '0';
-	else
-		conv[0] = '-';
-	xx = abs(xx);
-	conv[1] = '.';
-	conv[2] = (xx / 100) % 10 + '0';
-	conv[3] = (xx / 10) % 10 + '0';
-	conv[4] = (xx) % 10 + '0';
-	conv[5] = 0;
-	return conv;
+    {
+      conv[0] = (xx / 1000) % 10 + '0';
+      xx = abs(xx);
+      conv[1] = '.';
+      conv[2] = (xx / 100) % 10 + '0';
+      conv[3] = (xx / 10) % 10 + '0';
+      conv[4] = (xx) % 10 + '0';
+      conv[5] = 0;
+    }
+    else
+    {
+      conv[0] = '-';
+      xx = abs(xx);
+      conv[1] = (xx / 1000) % 10 + '0';
+      conv[2] = '.';
+      conv[3] = (xx / 100) % 10 + '0';
+      conv[4] = (xx / 10) % 10 + '0';
+      conv[5] = (xx) % 10 + '0';
+      conv[6] = 0;
+    }
+    return conv;
 }
 
 //Float to string with 1.23 format
