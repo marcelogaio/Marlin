@@ -75,6 +75,8 @@
 // G4  - Dwell S<seconds> or P<milliseconds>
 // G10 - retract filament according to settings of M207
 // G11 - retract recover filament according to settings of M208
+// G26 - aknowledge the beginning of a print
+// G27 - reapply saved plane equation coefficients
 // G28 - Home all Axis
 // G29 - Detailed Z-Probe, probes the bed at 3 or more points.  Will fail if you haven't homed yet.
 // G30 - Single Z Probe, probes bed at current XY location.
@@ -119,6 +121,7 @@
 // M105 - Read current temp
 // M106 - Fan on
 // M107 - Fan off
+// M108 - cancel heatup
 // M109 - Sxxx Wait for extruder current temp to reach target temp. Waits only when heating
 //        Rxxx Wait for extruder current temp to reach target temp. Waits when heating and cooling
 //        IF AUTOTEMP is enabled, S<mintemp> B<maxtemp> F<factor>. Exit autotemp by any M109 without F
@@ -246,6 +249,7 @@ bool axis_known_position[3] = {false, false, false};
 float zprobe_zoffset;
 
 bool reprobe_attempts[] = {0, 0};
+bool probe_fail = false;
 
 bool probing = false;
 
@@ -707,9 +711,9 @@ void loop()
     #endif //SDSUPPORT
     buflen = (buflen-1);
     bufindr = (bufindr + 1)%BUFSIZE;
-    if(resume_print && !sd_position_set && card.getStatus(false) > 10240)
+    if(resume_print && !sd_position_set && card.getSDpos() > 10240)
     {
-      card.setIndex(sd_position-100000);
+      card.setIndex(sd_position-10240);
       card.getStatus();
       sd_position_set = true;
       enquecommand("G27");
@@ -723,17 +727,23 @@ void loop()
 }
 
 bool check_if_sdprinting() {
-  return card.sdprinting;
+  return IS_SD_PRINTING;
 }
 
 uint32_t get_sdposition() {
-  return card.getStatus(false);
+  return card.getSDpos();
 }
 
 void clear_buffer() {
   for(uint8_t i=0; i < BUFSIZE; i++)
     for(uint8_t j=0; j < MAX_CMD_SIZE; j++)
-      cmdbuffer[i][j] = 0;
+      cmdbuffer[i][j] = NULL;
+  MYSERIAL.flush();
+  serial_count = 0;
+  buflen = 1;
+  bufindr = BUFSIZE-1;
+  bufindw = 0;
+//SERIAL_ECHOLN(buflen);
 }
 
 void get_command()
@@ -832,7 +842,31 @@ void get_command()
         //If command was M601 stop change filament mode
         if(strcmp(cmdbuffer[bufindw], "M601") == 0)
           change_filament = false;
-        
+        if(strcmp(cmdbuffer[bufindw], "M108") == 0)
+          cancel_heatup = true;
+        if(probe_fail && strcmp(cmdbuffer[bufindw], "G26") == 0)
+        {
+        //SERIAL_ECHOLN("probe_fail set false");
+          LCD_MESSAGEPGM(WELCOME_MSG);
+          probe_fail = false;
+        }
+        else if(probe_fail && (strchr(cmdbuffer[bufindr], 'G') != NULL || strchr(cmdbuffer[bufindr], 'M') != NULL) && strstr(cmdbuffer[bufindw], "M105") == NULL)
+        {
+        //SERIAL_ECHOPGM("clearing command: ");
+        //SERIAL_ECHOLN(cmdbuffer[bufindr]);
+          for(uint8_t j=0; j < MAX_CMD_SIZE; j++)
+            cmdbuffer[bufindr][j] = 0;
+          if(buflen)
+          {
+            buflen -= 1;
+            bufindr = (bufindr + 1)%BUFSIZE;
+          }
+          serial_count = 0;
+          return;
+        }
+      //if(strstr(cmdbuffer[bufindw], "M105") != NULL)
+        //SERIAL_ECHOLN("Got M105!!");
+
         bufindw = (bufindw + 1)%BUFSIZE;
         buflen += 1;
       }
@@ -1140,32 +1174,15 @@ void probing_failed() {
       if(!reprobe_attempts[0])
         reprobe_attempts[0] = 1;
       else
+      {
+        reprobe_attempts[0] = 0;
         reprobe_attempts[1] = 1;
+      }
     }
     else
     {
+      reprobe_attempts[0] = 1;
       do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 10.0);
-      plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.0, feedrate/60, active_extruder);
-      st_synchronize();
-      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-      tone(BEEPER, 1750);
-      delay(750);
-      noTone(BEEPER);
-      SERIAL_ERROR_START;
-      SERIAL_ERRORLNPGM(MSG_LEVEL_FAIL);
-      LCD_ALERTMESSAGEPGM(MSG_LEVEL_FAIL);
-      while(1)
-      {
-        disable_heater();
-        disable_x();
-        disable_y();
-        disable_z();
-        disable_e0();
-        disable_e1();
-        disable_e2();
-        manage_heater();
-        lcd_update();
-      }
     }
 }
 
@@ -1568,6 +1585,10 @@ void process_commands()
       break;
       #endif //FWRETRACT
 
+    case 26:
+      probe_fail = false;
+      break;
+
     case 27:
     {
       if(code_seen('A'))
@@ -1966,6 +1987,8 @@ void process_commands()
             for (int yProbe=FRONT_PROBE_BED_POSITION; yProbe <= BACK_PROBE_BED_POSITION; yProbe += yGridSpacing)
             {
               int xProbe, xInc;
+              if(reprobe_attempts[1] && reprobe_attempts[0] && probePointCounter == -1)
+                break;
               if (zig)
               {
                 xProbe = LEFT_PROBE_BED_POSITION;
@@ -1995,8 +2018,13 @@ void process_commands()
                 }
 
                 float measured_z = probe_pt(xProbe, yProbe, z_before);
+                if(reprobe_attempts[1] && reprobe_attempts[0] && measured_z == 0.0)
+                {
+                  probePointCounter = -1;
+                  break;
+                }
 
-                if((reprobe_attempts[0] || reprobe_attempts[1]) && measured_z == 0.0)
+                if((reprobe_attempts[1] || reprobe_attempts[0]) && measured_z == 0.0)
                 {
                   probePointCounter = 0;
                   zig = true;
@@ -2012,6 +2040,30 @@ void process_commands()
                 probePointCounter++;
                 xProbe += xInc;
               }
+            }
+            if(reprobe_attempts[1] && reprobe_attempts[0] && probePointCounter == -1)
+            {
+              if(!IS_SD_PRINTING)
+                probe_fail = true;
+              disable_heater();
+              for(int i=0; i<EXTRUDERS; i++) target_temp_reached[i] = false;
+              card.closefile();
+              card.sdprinting = false;
+              clear_buffer();
+              reprobe_attempts[0] = 0;
+              reprobe_attempts[1] = 0;
+              do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 10.0);
+              plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.0, feedrate/60, active_extruder);
+              st_synchronize();
+              plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+              acceleration = DEFAULT_ACCELERATION;
+              tone(BEEPER, 1750);
+              delay(750);
+              noTone(BEEPER);
+              SERIAL_ERROR_START;
+              SERIAL_ERRORLNPGM(MSG_LEVEL_FAIL);
+              LCD_MESSAGEPGM(MSG_LEVEL_FAIL);
+              break;
             }
             clean_up_after_endstop_move();
 
@@ -2032,7 +2084,12 @@ void process_commands()
 
             set_bed_level_equation_lsq(plane_equation_coefficients);
 
+            // Prevent MCU freeze when storing coefficients
+            st_synchronize();
+            cli();
             Config_StoreLevel();
+            sei();
+            st_synchronize();
 
             free(plane_equation_coefficients_tmp);
             free(plane_equation_coefficients);
@@ -2294,7 +2351,8 @@ void process_commands()
       }
       break;
     case 27: //M27 - Get SD status
-      sd_position = card.getStatus();
+      card.getStatus();
+      sd_position = card.getSDpos();
       break;
     case 28: //M28 - Start SD write
       starpos = (strchr(strchr_pointer + 4,'*'));
@@ -2771,6 +2829,8 @@ Sigma_Exit:
         SERIAL_PROTOCOLLN("");
       return;
       break;
+    case 108:
+      cancel_heatup = true;
     case 109:
     {// M109 - Wait for extruder heater to reach target.
       if(setTargetedHotend(109)){
@@ -4068,6 +4128,8 @@ case 404:  //M404 Enter the nominal filament width (3mm, 1.75mm ) N<3.0> or disp
         plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], feedrate/60, active_extruder); //final untretract
     }
     break;
+    case 601:
+      change_filament = false;
     #endif //FILAMENTCHANGEENABLE
     #ifdef DUAL_X_CARRIAGE
     case 605: // Set dual x-carriage movement mode:

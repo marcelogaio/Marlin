@@ -452,7 +452,7 @@ void lcd_set_home_offsets()
       u8g.drawBitmapP(1,47,3,16,cw_bmp);
       u8g.drawStr(24,60,"Z");
       u8g.drawBitmapP(31,51,2,10,up_arrow_bmp);
-      u8g.drawBitmapP(80,47,3,16,ccw_bmp);
+      u8g.drawBitmapP(83,47,3,16,ccw_bmp);
       u8g.drawStr(110,60,"Z");
       u8g.drawBitmapP(116,49,2,10,down_arrow_bmp);
       if (offset_up)
@@ -787,11 +787,11 @@ static void lcd_move_menu_axis()
     MENU_ITEM(back, MSG_MOVE_AXIS, lcd_move_menu);
     MENU_ITEM(submenu, MSG_MOVE_X, lcd_move_x);
     MENU_ITEM(submenu, MSG_MOVE_Y, lcd_move_y);
-    if (move_menu_scale < 10.0)
-    {
+  //if (move_menu_scale < 10.0)
+  //{
         MENU_ITEM(submenu, MSG_MOVE_Z, lcd_move_z);
         MENU_ITEM(submenu, MSG_MOVE_E, lcd_move_e);
-    }
+  //}
     END_MENU();
 }
 
@@ -1665,6 +1665,20 @@ char *ftostr43(const float &x)
       conv[6] = 0;
     }
     return conv;
+}
+
+//Float to string with 12.3 format
+char *ftostr13ns(const float &x)
+{
+  long xx=x*10;
+  
+  xx=abs(xx);
+  conv[0]=(xx/100)%10+'0';
+  conv[1]=(xx/10)%10+'0';
+  conv[2]='.';
+  conv[3]=(xx)%10+'0';
+  conv[4]=0;
+  return conv;
 }
 
 //Float to string with 1.23 format

@@ -456,18 +456,29 @@ void CardReader::removeFile(char* name)
   
 }
 
-uint32_t CardReader::getStatus(bool printstatus)
+uint32_t CardReader::getSDpos()
 {
-  if(cardOK && printstatus){
+  return sdpos;
+}
+
+/*
+uint32_t CardReader::getFilesize()
+{
+  return filesize;
+}
+*/
+
+void CardReader::getStatus()
+{
+  if(cardOK){
     SERIAL_PROTOCOLPGM(MSG_SD_PRINTING_BYTE);
     SERIAL_PROTOCOL(sdpos);
     SERIAL_PROTOCOLPGM("/");
     SERIAL_PROTOCOLLN(filesize);
   }
-  else if(printstatus){
+  else{
     SERIAL_PROTOCOLLNPGM(MSG_SD_NOT_PRINTING);
   }
-  return sdpos;
 }
 void CardReader::write_command(char *buf)
 {
