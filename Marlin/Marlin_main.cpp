@@ -2831,20 +2831,28 @@ Sigma_Exit:
       break;
     case 108:
       cancel_heatup = true;
+      break;
     case 109:
     {// M109 - Wait for extruder heater to reach target.
       if(setTargetedHotend(109)){
         break;
       }
+      bool heating = true;
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
       target_temp_reached[tmp_extruder] = false;
 #endif
-      LCD_MESSAGEPGM(MSG_HEATING);
       #ifdef AUTOTEMP
         autotemp_enabled=false;
       #endif
       if (code_seen('S')) {
         setTargetHotend(code_value(), tmp_extruder);
+        if(degTargetHotend(tmp_extruder) > degHotend(tmp_extruder))
+          LCD_MESSAGEPGM(MSG_HEATING);
+        else
+        {
+          heating = false;
+          LCD_MESSAGEPGM(MSG_COOLING);
+        }
         if (resume_print && degTargetHotend(tmp_extruder) < (degHotend(tmp_extruder) - 10))
           return;
 #ifdef DUAL_X_CARRIAGE
@@ -2927,12 +2935,16 @@ Sigma_Exit:
           }
         #endif //TEMP_RESIDENCY_TIME
         }
-        LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
+        if(heating)
+          LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
+        else
+          LCD_MESSAGEPGM(MSG_COOLING_COMPLETE);
         starttime=millis();
         previous_millis_cmd = millis();
         MYSERIAL.flush();
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
-        target_temp_reached[tmp_extruder] = true;
+        if(!cancel_heatup)
+          target_temp_reached[tmp_extruder] = true;
 #endif
       }
       break;
@@ -2942,9 +2954,16 @@ Sigma_Exit:
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
         target_temp_reached[EXTRUDERS] = false;
 #endif
-        LCD_MESSAGEPGM(MSG_BED_HEATING);
+        bool heating = true;
         if (code_seen('S')) {
           setTargetBed(code_value());
+          if(degTargetBed() > degBed())
+            LCD_MESSAGEPGM(MSG_BED_HEATING);
+          else
+          {
+            heating = false;
+            LCD_MESSAGEPGM(MSG_BED_COOLING);
+          }
           CooldownNoWait = true;
         } else if (code_seen('R')) {
           setTargetBed(code_value());
@@ -3006,11 +3025,15 @@ Sigma_Exit:
             }
           #endif //TEMP_RESIDENCY_TIME
         }
-        LCD_MESSAGEPGM(MSG_BED_DONE);
+        if(heating)
+          LCD_MESSAGEPGM(MSG_BED_DONE);
+        else
+          LCD_MESSAGEPGM(MSG_BED_COOL_DONE);
         previous_millis_cmd = millis();
         MYSERIAL.flush();
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
-        target_temp_reached[EXTRUDERS] = true;
+        if(!cancel_heatup)
+          target_temp_reached[EXTRUDERS] = true;
 #endif
     #endif
         }
@@ -4130,6 +4153,7 @@ case 404:  //M404 Enter the nominal filament width (3mm, 1.75mm ) N<3.0> or disp
     break;
     case 601:
       change_filament = false;
+      break;
     #endif //FILAMENTCHANGEENABLE
     #ifdef DUAL_X_CARRIAGE
     case 605: // Set dual x-carriage movement mode:
