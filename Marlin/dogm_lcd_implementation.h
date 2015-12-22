@@ -38,6 +38,7 @@
 #include "dogm_font_data_marlin.h"
 #include "ultralcd.h"
 #include "ultralcd_st7920_u8glib_rrd.h"
+#include "language.h"
 
 /* Russian language not supported yet, needs custom font
 
@@ -133,7 +134,8 @@ static void lcd_implementation_init()
 			u8g.drawStr(63,41,"LulzBot.com");
 			u8g.setFont(u8g_font_5x8);
 			u8g.drawStr(62,53,"Firmware:");
-			u8g.drawStr(63,62,"Marlin 1.0.4");
+			u8g.drawStr(63,62,"Marlin");
+			u8g.drawStr(97,62,VERSION_STRING);
 	   } while( u8g.nextPage() );
 }
 
