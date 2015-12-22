@@ -3019,9 +3019,9 @@ Sigma_Exit:
     #if defined(FAN_PIN) && FAN_PIN > -1
       case 106: //M106 Fan On
         if (code_seen('T')){
-           ICR4 = constrain(code_value(),0,400);
+           ICR4 = /*constrain(*/code_value()/*,0,65535)*/;
            if (code_seen('S')){
-             fanSpeed=constrain(code_value(),0,400);
+             fanSpeed=/*constrain(*/code_value()/*,0,65535)*/;
            }
         }
         else if (code_seen('S')){
@@ -5044,16 +5044,16 @@ void setPwmFrequency(uint8_t pin, int val)
          TCCR4B |= val; //CS42:0 Clock Select - Table 17-6
 
                           //10
-       //TCCR4A |=   B00000011;
+         TCCR4A |=   B00000000;
          TCCR4A &= ~(B00000011);
                        //32
-         TCCR4B &= ~(B00001000);
          TCCR4B |=   B00010000;
+         TCCR4B &= ~(B00001000);
 
        //WGM3:0 == B1000 == 8 <- Mode 8 PWM phase and frequency correct
                                //check atmega2560 datasheet page 145 table 17-2
 
-         ICR4 = 255;
+         ICR4 = 65535; // (2^8-1) is the top of the counter
          break;
    #endif
 

@@ -75,6 +75,7 @@ float max_z_jerk;
 float max_e_jerk;
 float mintravelfeedrate;
 unsigned long axis_steps_per_sqr_second[NUM_AXIS];
+bool jumpstart_fan = true;
 #ifdef RESUME_FEATURE
   float planner_disabled_below_z = 0;
   uint32_t sd_position = 0;
@@ -524,83 +525,27 @@ void check_axes_activity()
   fanSpeedSoftPwm = tail_fan_speed;
   #else
   if(tail_fan_speed == 0)
+  {
     digitalWrite(FAN_PIN, LOW);
+    jumpstart_fan = true;
+  }
   else if(tail_fan_speed == 255)
     digitalWrite(FAN_PIN, HIGH);
   else
   {
-  /*if(fanSpeed > 0 && fanSpeed <= 85)
+    static unsigned long jumpstart_time = 0;
+    if(jumpstart_fan)
     {
-      ICR4 = -fanSpeed + 130;
-      //SERIAL_PROTOCOL(ICR4);
-      //ICR4 = 130 ~ 40
-      tail_fan_speed = 2;
-    }*/
-/*else*/if(fanSpeed > 0 && fanSpeed <= 180)
-    {
-      ICR4 = -fanSpeed + 330;
-      //SERIAL_PROTOCOL(ICR4);
-      //ICR4 = 330 ~ 120;
-      tail_fan_speed = 3;
-    }
-    else if(fanSpeed > 180 && fanSpeed <= 223)
-    {
-      ICR4 = -5*fanSpeed + 1300; // = 400 - 5(fanSpeed-180)
-      //SERIAL_PROTOCOL(ICR4);
-      //ICR4 = 400 ~ 180;
-      tail_fan_speed = 4;
-    }
-    else if(fanSpeed > 223 && fanSpeed <= 247)
-    {
-      ICR4 = -8*fanSpeed + 2184; // = 400 - 8(fanSpeed-223)
-      //SERIAL_PROTOCOL(ICR4);
-      //ICR4 = 400 ~ 200;
-      tail_fan_speed = 5;
-    }
-    else if(fanSpeed == 248)
-    {
-      ICR4 = 350; // 360 fails ?
-      tail_fan_speed = 6;
-    }
-    else if(fanSpeed == 249)
-    {
-      ICR4 = 255;
-      tail_fan_speed = 6;
-    }
-    else if(fanSpeed == 250)
-    {
-      ICR4 = 255;
-      tail_fan_speed = 7;
-    }
-    else if(fanSpeed == 251)
-    {
-      ICR4 = 255;
-      tail_fan_speed = 64;
-    }
-    else if(fanSpeed == 252)
-    {
-      ICR4 = 255;
-      tail_fan_speed = 128;
-    }
-    else if(fanSpeed == 253)
-    {
-      ICR4 = 255;
-      tail_fan_speed = 160;
-    }
-    else if(fanSpeed == 254)
-    {
-      ICR4 = 255;
-      tail_fan_speed = 192;
-    }
-    else if(fanSpeed == 255)
-    {
-      ICR4 = 255;
-      tail_fan_speed = 255;
+      jumpstart_fan = false;
+      jumpstart_time = millis();
     }
 
     //analogWrite(FAN_PIN,tail_fan_speed);
     sbi(TCCR4A, COM4C1);
-    OCR4C = tail_fan_speed; // set pwm duty
+    if((tail_fan_speed*208 + 12495) < 25000 && (millis() - jumpstart_time) < 250)
+      OCR4C = 32768;
+    else
+      OCR4C = (tail_fan_speed*208 + 12495); // set pwm duty, (2^8-1) is the top of the counter
   }
   #endif//!FAN_SOFT_PWM
 #endif//FAN_PIN > -1
