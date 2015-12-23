@@ -1654,14 +1654,17 @@ void process_commands()
       }
 
        #ifdef Z_RAISE_BEFORE_HOMING
-          if(current_position[Z_AXIS] < 10 && !home_x_and_y)
+          if(current_position[Z_AXIS] < Z_RAISE_BEFORE_HOMING && !home_x_and_y && (current_position[X_AXIS] != Z_SAFE_HOMING_X_POINT || current_position[Y_AXIS] != Z_SAFE_HOMING_Y_POINT))
           {
             destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
             feedrate = XY_TRAVEL_SPEED/60;
-            current_position[Z_AXIS] = 0;
+            if(!axis_known_position[Z_AXIS])
+              current_position[Z_AXIS] = 0;
             plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], destination[Z_AXIS], current_position[E_AXIS], feedrate, active_extruder);
             st_synchronize();
+            if(axis_known_position[Z_AXIS])
+              current_position[Z_AXIS] = 0;
             destination[Z_AXIS] = 0;
           }
       #endif
