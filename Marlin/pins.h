@@ -672,7 +672,7 @@
   #define PS_ON_PIN          12
 
   #if defined(REPRAP_DISCOUNT_SMART_CONTROLLER) || defined(G3D_PANEL)
-    #define KILL_PIN           41
+    #define KILL_PIN           -1
   #else
     #define KILL_PIN           -1
   #endif
@@ -780,7 +780,7 @@
         #define BTN_ENC 32
         #define LCD_SDSS 53
         #define SDCARDDETECT -1
-        #define KILL_PIN 41
+        #define KILL_PIN -1
       #elif defined(LCD_I2C_VIKI)
         #define BTN_EN1 22  //reverse if the encoder turns the wrong way.
         #define BTN_EN2 7
@@ -1646,7 +1646,7 @@
 //additional FAN1 PIN (e.g. useful for electronics fan or light on/off) on PIN 8
 
 #define PS_ON_PIN          45
-#define KILL_PIN           46
+#define KILL_PIN           -1
 
 #if (TEMP_SENSOR_0==0)
  #define TEMP_0_PIN         -1
@@ -1945,7 +1945,7 @@
 #define BTN_EN2            40
 #define BTN_ENC            12
 
-#define KILL_PIN           42 // A2 = 42 - teensy = 40
+#define KILL_PIN          -1 // A2 = 42 - teensy = 40
 #define HOME_PIN          -1 // A4 = marlin 44 - teensy = 42
 
 #ifdef NUM_SERVOS
@@ -2425,7 +2425,7 @@ DaveX plan for Teensylu/printrboard-type pinouts (ref teensylu & sprinter) for a
 #define SUICIDE_PIN        -1  //PIN that has to be turned on right after start, to keep power flowing.
 
 #ifdef ULTRA_LCD
-  #define KILL_PIN 80
+  #define KILL_PIN -1
   #ifdef NEWPANEL
    //arduino pin which triggers an piezzo beeper
     #define BEEPER 79      // Beeper on AUX-4
