@@ -75,7 +75,7 @@
 // G4  - Dwell S<seconds> or P<milliseconds>
 // G10 - retract filament according to settings of M207
 // G11 - retract recover filament according to settings of M208
-// G26 - aknowledge the beginning of a print
+// G26 - acknowledge the beginning of a print
 // G27 - reapply saved plane equation coefficients
 // G28 - Home all Axis
 // G29 - Detailed Z-Probe, probes the bed at 3 or more points.  Will fail if you haven't homed yet.

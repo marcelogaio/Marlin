@@ -30,6 +30,12 @@
   #define LANGUAGE_INCLUDE GENERATE_LANGUAGE_INCLUDE(en)
 #endif
 
+//#if ENABLED(USE_AUTOMATIC_VERSIONING)
+  //#include "_Version.h"
+//#else
+  #include "Default_Version.h"
+//#endif
+
 #define PROTOCOL_VERSION "1.0"
 
 #if MB(ULTIMAKER)|| MB(ULTIMAKER_OLD)|| MB(ULTIMAIN_2)
@@ -62,8 +68,8 @@
 #endif
 
 
-#ifndef MACHINE_UUID
-   #define MACHINE_UUID "00000000-0000-0000-0000-000000000000"
+#ifndef UUID
+   #define UUID "845f003c-aebd-4e53-a6b9-7d0984fde609"
 #endif
 
 
@@ -77,7 +83,7 @@
 
 // Common serial messages
 #define MSG_MARLIN "Marlin"
-#define VERSION_STRING "1.0.5"
+#define VERSION_STRING SHORT_BUILD_VERSION
 
 // Serial Console Messages (do not translate those!)
 
@@ -115,7 +121,7 @@
 #define MSG_BED_COOLING                     "Bed Cooling..."
 #define MSG_BED_DONE                        "Bed Heating done."
 #define MSG_BED_COOL_DONE                   "Bed Cooling done."
-#define MSG_M115_REPORT                     "FIRMWARE_NAME:Marlin V" VERSION_STRING "; Sprinter/grbl mashup for gen6 FIRMWARE_URL:" FIRMWARE_URL " PROTOCOL_VERSION:" PROTOCOL_VERSION " MACHINE_TYPE:" MACHINE_NAME " EXTRUDER_COUNT:" STRINGIFY(EXTRUDERS) " UUID:" MACHINE_UUID "\n"
+#define MSG_M115_REPORT                     "FIRMWARE_NAME:Marlin " DETAILED_BUILD_VERSION " SOURCE_CODE_URL:" SOURCE_CODE_URL " PROTOCOL_VERSION:" PROTOCOL_VERSION " MACHINE_TYPE:" MACHINE_NAME " EXTRUDER_COUNT:" STRINGIFY(EXTRUDERS) " UUID:" UUID "\n"
 #define MSG_COUNT_X                         " Count X: "
 #define MSG_ERR_KILLED                      "Printer halted. kill() called!"
 #define MSG_ERR_STOPPED                     "Printer stopped due to errors. Fix the error and use M999 to restart. (Temperature is reset. Set it after restarting)"
