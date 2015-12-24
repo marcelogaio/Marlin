@@ -502,6 +502,7 @@ void Config_RetrieveSettings()
     else
     {
         Config_ResetDefault();
+        Config_StoreSettings();
     }
     #ifdef EEPROM_CHITCHAT
       Config_PrintSettings();
