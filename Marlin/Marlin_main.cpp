@@ -913,14 +913,13 @@ void get_command()
         lcd_setstatus(time);
         card.printingHasFinished();
         resume_print = false;
-        planner_disabled_below_z = 0.0;
+        #ifdef RESUME_FEATURE
+          planner_disabled_below_z = 0.0;
+        #endif //RESUME_FEATURE
         Config_StoreZ();
         sd_position = 0;
         Config_StoreCardPos();
         card.checkautostart(true);
-        #ifdef RESUME_FEATURE
-          planner_disabled_below_z = 0;
-        #endif //RESUME_FEATURE
       }
       if(serial_char=='#')
         stop_buffering=true;
@@ -1321,7 +1320,7 @@ static float probe_pt(float x, float y, float z_before) {
   SERIAL_PROTOCOLPGM(" y: ");
   SERIAL_PROTOCOL(y);
   SERIAL_PROTOCOLPGM(" z: ");
-  SERIAL_PROTOCOL(measured_z);
+  SERIAL_PROTOCOL_F(measured_z, 6);
   SERIAL_PROTOCOLPGM("\n");
   return measured_z;
 }
@@ -1913,9 +1912,9 @@ void process_commands()
         current_position[Z_AXIS] = 1.0/(axis_steps_per_unit[Z_AXIS]);
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
         do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
-        current_position[Z_AXIS] = planner_disabled_below_z;
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        axis_known_position[Z_AXIS] = true;
+      //current_position[Z_AXIS] = planner_disabled_below_z;
+      //plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+      //axis_known_position[Z_AXIS] = true;
         resume_print = true;
       }
       MYSERIAL.flush();
@@ -2078,11 +2077,12 @@ void process_commands()
             plane_equation_coefficients[2] = plane_equation_coefficients_tmp[2];
 
             SERIAL_PROTOCOLPGM("Eqn coefficients: a: ");
-            SERIAL_PROTOCOL(plane_equation_coefficients[0]);
+            SERIAL_PROTOCOL_F(plane_equation_coefficients[0], 6);
             SERIAL_PROTOCOLPGM(" b: ");
-            SERIAL_PROTOCOL(plane_equation_coefficients[1]);
+            SERIAL_PROTOCOL_F(plane_equation_coefficients[1], 6);
             SERIAL_PROTOCOLPGM(" d: ");
-            SERIAL_PROTOCOLLN(plane_equation_coefficients[2]);
+            SERIAL_PROTOCOL_F(plane_equation_coefficients[2], 6);
+            SERIAL_ECHOLN("");
 
 
             set_bed_level_equation_lsq(plane_equation_coefficients);
@@ -2285,8 +2285,10 @@ void process_commands()
         get_coordinates(); // For Z
         prepare_move();
         st_synchronize();
+        float keep_z = current_position[Z_AXIS];
         enquecommand("M114"); // tell the host where it is
         enquecommand("G27");
+        current_position[Z_AXIS] = keep_z;
         resume_print = true;
       }
       /*
@@ -2302,14 +2304,20 @@ void process_commands()
       else if (planner_disabled_below_z > 0 && /* current_position[Z_AXIS] == 0 && */ (!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS]))
       {
         home_x_and_y = true;
-        enquecommand("G28");
+        enquecommand("G28"); // TODO: still need to use the slope on X and Y to find the point in space we left off on
         enquecommand("G27");
+        current_position[Z_AXIS] = planner_disabled_below_z; // make sure that the height we're at now is the same as where it was before
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+        axis_known_position[Z_AXIS] = true;
       }
       else if (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
       {
         do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], planner_disabled_below_z);
-        resume_print = true;
         enquecommand("G27");
+        current_position[Z_AXIS] = planner_disabled_below_z;
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+        axis_known_position[Z_AXIS] = true;
+        resume_print = true;
       }
       else
         SERIAL_PROTOCOLPGM("Error: Resume from Z <= 0\n");
