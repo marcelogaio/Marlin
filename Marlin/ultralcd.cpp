@@ -349,7 +349,7 @@ static void lcd_sdcard_stop()
 
 	cancel_heatup = true;
 
-	LCD_ALERTMESSAGEPGM(MSG_PRINT_ABORTED);
+	LCD_MESSAGEPGM(MSG_PRINT_ABORTED);
 
         for(int i=0; i<EXTRUDERS; i++) target_temp_reached[i] = false;
 
