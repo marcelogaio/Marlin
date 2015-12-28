@@ -118,6 +118,7 @@ void Config_StoreSettings()
   EEPROM_WRITE_VAR(i,absPreheatHotendTemp);
   EEPROM_WRITE_VAR(i,absPreheatHPBTemp);
   EEPROM_WRITE_VAR(i,absPreheatFanSpeed);
+  i_zoffset = i;
   EEPROM_WRITE_VAR(i,zprobe_zoffset);
   #ifdef PIDTEMP
     EEPROM_WRITE_VAR(i,Kp);
@@ -162,6 +163,7 @@ void Config_StoreSettings()
   #endif
   #endif
   #ifdef ENABLE_AUTO_BED_LEVELING
+  i_bed_level = i;
   /*
   SERIAL_ECHO_START;
   SERIAL_ECHOLNPGM("i: ");
@@ -173,6 +175,7 @@ void Config_StoreSettings()
   EEPROM_WRITE_VAR(i,plane_equation_coefficients);
   #endif
   #ifdef RESUME_FEATURE
+  i_z = i;
   /*
   SERIAL_ECHO_START;
   SERIAL_ECHOLNPGM("i: ");
@@ -182,6 +185,7 @@ void Config_StoreSettings()
   SERIAL_ECHOLN("");
   */
   EEPROM_WRITE_VAR(i,planner_disabled_below_z);
+  i_sd = i;
   /*
   SERIAL_ECHO_START;
   SERIAL_ECHOLNPGM("i: ");
