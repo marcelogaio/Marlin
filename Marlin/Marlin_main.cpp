@@ -2087,15 +2087,9 @@ void process_commands()
 
             set_bed_level_equation_lsq(plane_equation_coefficients);
 
-            // Prevent MCU freeze when storing coefficients
-            st_synchronize();
-            cli();
             Config_StoreLevel();
-            sei();
-            st_synchronize();
 
             free(plane_equation_coefficients_tmp);
-            free(plane_equation_coefficients);
 
 #else // AUTO_BED_LEVELING_GRID not defined
 
