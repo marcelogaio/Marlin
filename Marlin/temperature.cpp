@@ -1017,6 +1017,8 @@ void setWatch()
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
 void thermal_runaway_protection(int *state, unsigned long *timer, float temperature, float target_temperature, int heater_id, int period_seconds, int hysteresis_degc)
 {
+  static float last_target_temperature[EXTRUDERS];
+
 /*
       SERIAL_ECHO_START;
       SERIAL_ECHO("Thermal Thermal Runaway Running. Heater ID:");
@@ -1079,6 +1081,9 @@ void thermal_runaway_protection(int *state, unsigned long *timer, float temperat
       }
       break;
   }
+  if(last_target_temperature[heater_id] < target_temperature)
+    target_temp_reached[heater_id] = false;
+  last_target_temperature[heater_id] = target_temperature;
 }
 #endif
 
