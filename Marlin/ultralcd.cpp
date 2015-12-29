@@ -76,6 +76,7 @@ static void lcd_sdcard_menu();
   static void lcd_sdcard_print_menu();
   bool resume_selected = false;
   bool resume_print = false;
+  bool beep_once = true;
   extern float planner_disabled_below_z;
   extern float last_z;
   extern bool z_reached;
@@ -389,6 +390,7 @@ static void lcd_main_menu()
             MENU_ITEM(function, MSG_STOP_PRINT, lcd_sdcard_stop);
         }else if (!movesplanned() && !IS_SD_PRINTING){
           #ifdef RESUME_FEATURE
+            beep_once = true;
             MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_print_menu);
             if (sd_position > 0 /*&& current_position[Z_AXIS] > 0 && current_position[Z_AXIS] != Z_RAISE_AFTER_HOMING*/)
               MENU_ITEM(submenu, MSG_CARD_RESUME_MENU, lcd_sdcard_resume_menu);
@@ -1051,6 +1053,7 @@ static void lcd_sd_updir()
     layer_reached = false;
     hops = false;
     gone_up = false;
+    noTone(BEEPER);
     lcd_sdcard_menu();
   }
 #endif //RESUME_FEATURE
@@ -1059,6 +1062,7 @@ void lcd_sdcard_menu()
 {
     if (lcdDrawUpdate == 0 && LCD_CLICKED == 0)
         return;	// nothing to do (so don't thrash the SD card)
+    resume_print = false;
     uint16_t fileCnt = card.getnrfilenames();
     START_MENU();
     MENU_ITEM(back, MSG_MAIN, lcd_main_menu);
@@ -1090,6 +1094,11 @@ void lcd_sdcard_menu()
         }else{
             MENU_ITEM_DUMMY();
         }
+    }
+    if(resume_selected && beep_once)
+    {
+      tone(BEEPER, 1750);
+      beep_once = false;
     }
     END_MENU();
 }
