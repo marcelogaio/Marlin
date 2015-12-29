@@ -2842,7 +2842,6 @@ Sigma_Exit:
       if(setTargetedHotend(109)){
         break;
       }
-      bool heating = true;
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
       target_temp_reached[tmp_extruder] = false;
 #endif
@@ -2854,10 +2853,7 @@ Sigma_Exit:
         if(degTargetHotend(tmp_extruder) > degHotend(tmp_extruder))
           LCD_MESSAGEPGM(MSG_HEATING);
         else
-        {
-          heating = false;
           LCD_MESSAGEPGM(MSG_COOLING);
-        }
         if (resume_print && degTargetHotend(tmp_extruder) < (degHotend(tmp_extruder) - 10))
           return;
 #ifdef DUAL_X_CARRIAGE
@@ -2940,11 +2936,12 @@ Sigma_Exit:
           }
         #endif //TEMP_RESIDENCY_TIME
         }
-        if(heating)
+        if(target_direction)
           LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
         else
           LCD_MESSAGEPGM(MSG_COOLING_COMPLETE);
-        starttime=millis();
+        if(card.sdprinting)
+          starttime=millis();
         previous_millis_cmd = millis();
         MYSERIAL.flush();
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
@@ -2959,16 +2956,12 @@ Sigma_Exit:
 #if defined (THERMAL_RUNAWAY_PROTECTION_PERIOD) && THERMAL_RUNAWAY_PROTECTION_PERIOD > 0
         target_temp_reached[EXTRUDERS] = false;
 #endif
-        bool heating = true;
         if (code_seen('S')) {
           setTargetBed(code_value());
           if(degTargetBed() > degBed())
             LCD_MESSAGEPGM(MSG_BED_HEATING);
           else
-          {
-            heating = false;
             LCD_MESSAGEPGM(MSG_BED_COOLING);
-          }
           CooldownNoWait = true;
         } else if (code_seen('R')) {
           setTargetBed(code_value());
@@ -3030,7 +3023,7 @@ Sigma_Exit:
             }
           #endif //TEMP_RESIDENCY_TIME
         }
-        if(heating)
+        if(target_direction)
           LCD_MESSAGEPGM(MSG_BED_DONE);
         else
           LCD_MESSAGEPGM(MSG_BED_COOL_DONE);
