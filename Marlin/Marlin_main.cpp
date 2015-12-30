@@ -711,13 +711,14 @@ void loop()
     #endif //SDSUPPORT
     buflen = (buflen-1);
     bufindr = (bufindr + 1)%BUFSIZE;
-    if(resume_print && !sd_position_set && card.getSDpos() > 10240)
-    {
-      card.setIndex(sd_position-10240);
-      card.getStatus();
-      sd_position_set = true;
-      enquecommand("G27");
-    }
+    #ifdef RESUME_PRINT
+      if(resume_print && !sd_position_set && card.getSDpos() > 10240)
+      {
+        card.setIndex(sd_position-10240);
+        card.getStatus();
+        sd_position_set = true;
+      }
+    #endif
   }
   //check heater every n milliseconds
   manage_heater();
@@ -912,13 +913,13 @@ void get_command()
         SERIAL_ECHOLN(time);
         lcd_setstatus(time);
         card.printingHasFinished();
-        resume_print = false;
         #ifdef RESUME_FEATURE
+          resume_print = false;
           planner_disabled_below_z = 0.0;
+          Config_StoreZ();
+          sd_position = 0;
+          Config_StoreCardPos();
         #endif //RESUME_FEATURE
-        Config_StoreZ();
-        sd_position = 0;
-        Config_StoreCardPos();
         card.checkautostart(true);
       }
       if(serial_char=='#')
@@ -1116,7 +1117,7 @@ static void set_bed_level_equation_lsq(double *plane_equation_coefficients, bool
 //    corrected_position.debug("position after");
     current_position[X_AXIS] = corrected_position.x;
     current_position[Y_AXIS] = corrected_position.y;
-    current_position[Z_AXIS] = corrected_position.z;
+  //current_position[Z_AXIS] = corrected_position.z;
 
     if(set_zprobe_zoffset)  // put the bed at 0 so we don't go below it.
       current_position[Z_AXIS] = zprobe_zoffset; // in the lsq we reach here after raising the extruder due to the loop structure
@@ -1550,8 +1551,10 @@ void process_commands()
       break;
 #endif
     case 4: // G4 dwell
-      if (resume_print)
-        return;
+      #ifdef RESUME_FEATURE
+        if (resume_print)
+          return;
+      #endif
       LCD_MESSAGEPGM(MSG_DWELL);
       codenum = 0;
       if(code_seen('P')) codenum = code_value(); // milliseconds to wait
@@ -1633,7 +1636,10 @@ void process_commands()
         if (resume_print) return; // Disable homing if resuming print
       #endif //RESUME_FEATURE
 #ifdef ENABLE_AUTO_BED_LEVELING
-      plan_bed_level_matrix.set_to_identity();  //Reset the plane ("erase" all leveling data)
+  #ifdef RESUME_FEATURE
+      if(!home_x_and_y)
+  #endif
+        plan_bed_level_matrix.set_to_identity();  //Reset the plane ("erase" all leveling data)
 #endif //ENABLE_AUTO_BED_LEVELING
 
       probing = false;
@@ -1652,8 +1658,10 @@ void process_commands()
         destination[i] = current_position[i];
       }
 
-       #ifdef Z_RAISE_BEFORE_HOMING
-          if(current_position[Z_AXIS] < Z_RAISE_BEFORE_HOMING && !home_x_and_y && (current_position[X_AXIS] != Z_SAFE_HOMING_X_POINT || current_position[Y_AXIS] != Z_SAFE_HOMING_Y_POINT))
+      #ifdef RESUME_FEATURE
+       if(!home_x_and_y) {
+        #ifdef Z_RAISE_BEFORE_HOMING
+          if(current_position[Z_AXIS] < Z_RAISE_BEFORE_HOMING && (current_position[X_AXIS] != Z_SAFE_HOMING_X_POINT || current_position[Y_AXIS] != Z_SAFE_HOMING_Y_POINT))
           {
             destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
             feedrate = XY_TRAVEL_SPEED/60;
@@ -1666,6 +1674,8 @@ void process_commands()
               current_position[Z_AXIS] = 0;
             destination[Z_AXIS] = 0;
           }
+        #endif
+      }
       #endif
 
       feedrate = 0.0;
@@ -1812,7 +1822,11 @@ void process_commands()
             HOMEAXIS(Z);
           }
         #else                      // Z Safe mode activated.
-          if(home_all_axis && !home_x_and_y) {
+          if(home_all_axis
+          #ifdef RESUME_FEATURE
+            && !home_x_and_y
+          #endif
+          ) {
             destination[X_AXIS] = round(Z_SAFE_HOMING_X_POINT - X_PROBE_OFFSET_FROM_EXTRUDER);
             destination[Y_AXIS] = round(Z_SAFE_HOMING_Y_POINT - Y_PROBE_OFFSET_FROM_EXTRUDER);
             //destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
@@ -1828,7 +1842,11 @@ void process_commands()
             HOMEAXIS(Z);
           }
                                                 // Let's see if X and Y are homed and probe is inside bed area.
-          if(code_seen(axis_codes[Z_AXIS]) && !home_all_axis && !home_x_and_y) {
+          if(code_seen(axis_codes[Z_AXIS]) && !home_all_axis
+          #ifdef RESUME_FEATURE
+            && !home_x_and_y
+          #endif
+          ) {
             if ( (axis_known_position[X_AXIS]) && (axis_known_position[Y_AXIS]) \
               && (current_position[X_AXIS]+X_PROBE_OFFSET_FROM_EXTRUDER >= X_MIN_POS) \
               && (current_position[X_AXIS]+X_PROBE_OFFSET_FROM_EXTRUDER <= X_MAX_POS) \
@@ -1859,7 +1877,11 @@ void process_commands()
       plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
       
       #ifdef Z_RAISE_AFTER_HOMING
-          if(((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) && !home_x_and_y) {
+          if(((home_all_axis) || (code_seen(axis_codes[Z_AXIS])))
+          #ifdef RESUME_FEATURE
+            && !home_x_and_y
+          #endif
+          ) {
               destination[Z_AXIS] = Z_RAISE_AFTER_HOMING * home_dir(Z_AXIS) * (-1);    // Set destination away from bed
               feedrate = max_feedrate[Z_AXIS];
               plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], destination[Z_AXIS], current_position[E_AXIS], feedrate, active_extruder);
@@ -1868,7 +1890,11 @@ void process_commands()
       #endif
 
       #ifdef Z_RAISE_AFTER_HOMING
-        if(((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) && !home_x_and_y) {
+        if(((home_all_axis) || (code_seen(axis_codes[Z_AXIS])))
+          #ifdef RESUME_FEATURE
+            && !home_x_and_y
+          #endif
+          ) {
         current_position[Z_AXIS] += Z_RAISE_AFTER_HOMING - Z_MIN_POS; //Sets Z distance back to 0 for auto leveling
 	    }
       #endif
@@ -1879,7 +1905,11 @@ void process_commands()
         }
       #endif
       */
-      if(code_seen(axis_codes[Z_AXIS]) && !home_x_and_y) {
+      if(code_seen(axis_codes[Z_AXIS])
+          #ifdef RESUME_FEATURE
+            && !home_x_and_y
+          #endif
+          ) {
         if(code_value_long() != 0) {
           current_position[Z_AXIS]=code_value()+add_homing[Z_AXIS];
         }
@@ -1906,17 +1936,19 @@ void process_commands()
       endstops_hit_on_purpose();
       //set endstop switch trigger back to std period
       endstop_trig_period = STD_ENDSTOP_PERIOD;
+      #ifdef RESUME_FEATURE
       if(home_x_and_y)
       {
         do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
         current_position[Z_AXIS] = 1.0/(axis_steps_per_unit[Z_AXIS]);
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
         do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
-      //current_position[Z_AXIS] = planner_disabled_below_z;
-      //plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-      //axis_known_position[Z_AXIS] = true;
+        current_position[Z_AXIS] = planner_disabled_below_z;
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+        axis_known_position[Z_AXIS] = true;
         resume_print = true;
       }
+      #endif
       MYSERIAL.flush();
       break;
 
@@ -2279,11 +2311,9 @@ void process_commands()
         get_coordinates(); // For Z
         prepare_move();
         st_synchronize();
-        float keep_z = current_position[Z_AXIS];
-        enquecommand("M114"); // tell the host where it is
-        enquecommand("G27");
-        current_position[Z_AXIS] = keep_z;
         resume_print = true;
+        enquecommand("G27");
+        enquecommand("M114"); // tell the host where it is
       }
       /*
       else if (current_position[Z_AXIS] != 10 && current_position[Z_AXIS] != 0 && axis_known_position[Z_AXIS]) {
@@ -2298,23 +2328,17 @@ void process_commands()
       else if (planner_disabled_below_z > 0 && /* current_position[Z_AXIS] == 0 && */ (!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS]))
       {
         home_x_and_y = true;
-        enquecommand("G28"); // TODO: still need to use the slope on X and Y to find the point in space we left off on
         enquecommand("G27");
-        current_position[Z_AXIS] = planner_disabled_below_z; // make sure that the height we're at now is the same as where it was before
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        axis_known_position[Z_AXIS] = true;
+        enquecommand("G28");
       }
       else if (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
       {
         do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], planner_disabled_below_z);
-        enquecommand("G27");
-        current_position[Z_AXIS] = planner_disabled_below_z;
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        axis_known_position[Z_AXIS] = true;
         resume_print = true;
+        enquecommand("G27");
       }
       else
-        SERIAL_PROTOCOLPGM("Error: Resume from Z <= 0\n");
+        SERIAL_ERRORLNPGM("Resume from Z <= 0\n");
       break;
 #endif //RESUME_FEATURE
 
@@ -2357,7 +2381,9 @@ void process_commands()
       break;
     case 27: //M27 - Get SD status
       card.getStatus();
-      sd_position = card.getSDpos();
+      #ifdef RESUME_FEATURE
+        sd_position = card.getSDpos();
+      #endif
       break;
     case 28: //M28 - Start SD write
       starpos = (strchr(strchr_pointer + 4,'*'));
@@ -2854,8 +2880,10 @@ Sigma_Exit:
           LCD_MESSAGEPGM(MSG_HEATING);
         else
           LCD_MESSAGEPGM(MSG_COOLING);
-        if (resume_print && degTargetHotend(tmp_extruder) < (degHotend(tmp_extruder) - 10))
-          return;
+        #ifdef RESUME_FEATURE
+          if (resume_print && degTargetHotend(tmp_extruder) < (degHotend(tmp_extruder) - 10))
+            return;
+        #endif
 #ifdef DUAL_X_CARRIAGE
         if (dual_x_carriage_mode == DXC_DUPLICATION_MODE && tmp_extruder == 0)
           setTargetHotend1(code_value() == 0.0 ? 0.0 : code_value() + duplicate_extruder_temp_offset);

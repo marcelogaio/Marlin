@@ -339,7 +339,9 @@ static void lcd_sdcard_stop()
     quickStop();
     card.sdprinting = false;
     card.closefile();
-    resume_print = false;
+    #ifdef RESUME_FEATURE
+      resume_print = false;
+    #endif
     if(SD_FINISHED_STEPPERRELEASE)
     {
         enquecommand_P(PSTR(SD_FINISHED_RELEASECOMMAND));
@@ -1062,7 +1064,9 @@ void lcd_sdcard_menu()
 {
     if (lcdDrawUpdate == 0 && LCD_CLICKED == 0)
         return;	// nothing to do (so don't thrash the SD card)
-    resume_print = false;
+    #ifdef RESUME_FEATURE
+      resume_print = false;
+    #endif
     uint16_t fileCnt = card.getnrfilenames();
     START_MENU();
     MENU_ITEM(back, MSG_MAIN, lcd_main_menu);
@@ -1095,11 +1099,13 @@ void lcd_sdcard_menu()
             MENU_ITEM_DUMMY();
         }
     }
-    if(resume_selected && beep_once)
-    {
-      tone(BEEPER, 1750);
-      beep_once = false;
-    }
+    #ifdef RESUME_FEATURE
+     if(resume_selected && beep_once)
+      {
+        tone(BEEPER, 1750);
+        beep_once = false;
+      }
+    #endif
     END_MENU();
 }
 
@@ -1210,6 +1216,7 @@ static void menu_action_gcode(const char* pgcode) { enquecommand_P(pgcode); }
 static void menu_action_function(menuFunc_t data) { (*data)(); }
 static void menu_action_sdfile(const char* filename, char* longFilename)
 {
+    #ifdef RESUME_FEATURE
     if(resume_selected)
     {
         /*
@@ -1219,6 +1226,7 @@ static void menu_action_sdfile(const char* filename, char* longFilename)
         enquecommand("M19");
         //enquecommand("G27");
     }
+    #endif
     char cmd[30];
     char* c;
     sprintf_P(cmd, PSTR("M23 %s"), filename);
