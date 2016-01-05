@@ -20,7 +20,7 @@ public:
   void checkautostart(bool x); 
   void openFile(char* name,bool read,bool replace_current=true,bool silence=false);
   void openLogFile(char* name);
-  void removeFile(char* name);
+  void removeFile(char* name,bool silence = false);
   void closefile(bool store_location=false);
   void release();
   void startFileprint();

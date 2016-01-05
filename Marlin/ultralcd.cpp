@@ -1302,7 +1302,7 @@ static void menu_action_sdfile(const char* filename, char* longFilename)
       }
       else
       {
-        card.removeFile(resumefilename); // delete the old resume file
+        card.removeFile(resumefilename, true); // delete the old resume file
     #endif
         enquecommand(cmd);
         enquecommand_P(PSTR("M24"));

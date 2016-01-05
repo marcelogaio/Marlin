@@ -976,6 +976,7 @@ void get_command()
           static char delresfile_cmd[30];
           if(delresfile_cmd[0] != 'M')
             strcpy(delresfile_cmd, "M30 ");
+          card.removeFile(resumefilename, true);
           for(int i=4; i<30; i++)
             delresfile_cmd[i] = '\0';
           strcat(delresfile_cmd, resumefilename);

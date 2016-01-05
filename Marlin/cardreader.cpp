@@ -392,7 +392,7 @@ void CardReader::openFile(char* name,bool read, bool replace_current/*=true*/, b
   
 }
 
-void CardReader::removeFile(char* name)
+void CardReader::removeFile(char* name, bool silence/*=false*/)
 {
   if(!cardOK)
     return;
@@ -448,13 +448,13 @@ void CardReader::removeFile(char* name)
   {
     curDir=&workDir;
   }
-    if (file.remove(curDir, fname)) 
+    if (file.remove(curDir, fname) && !silence) 
     {
       SERIAL_PROTOCOLPGM("File deleted:");
       SERIAL_PROTOCOLLN(fname);
       sdpos = 0;
     }
-    else
+    else if(!silence)
     {
       SERIAL_PROTOCOLPGM("Deletion failed, File: ");
       SERIAL_PROTOCOL(fname);
