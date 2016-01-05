@@ -2400,7 +2400,7 @@ void process_commands()
       //if(code_seen('P'))
         //planner_disabled_below_z = code_value();
         enquecommand("G27");
-        enquecommand_P((PSTR("G28")));
+        enquecommand("G28\0");
       }
       else if (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
       {
