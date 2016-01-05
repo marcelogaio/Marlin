@@ -1106,14 +1106,19 @@ void lcd_sdcard_menu()
         return;	// nothing to do (so don't thrash the SD card)
     uint16_t fileCnt = card.getnrfilenames();
     #ifdef RESUME_FEATURE
+      bool found_resume_gcode = false;
       card.getWorkDirName();
       for(uint16_t i=0;i<fileCnt;i++)
       {
         card.getfilename(fileCnt-1-i);
-        if(strstr(card.filename, resumefilename) != NULL && !selected_resume_once) //found a resume gcode file!
+        if(strstr(card.filename, resumefilename) != NULL) //found a resume gcode file!
         {
+          found_resume_gcode = true;
+          if(!selected_resume_once)
+          {
             resume_menu();
             return;
+          }
         }
       }
     #endif
@@ -1129,8 +1134,15 @@ void lcd_sdcard_menu()
         MENU_ITEM(function, LCD_STR_FOLDER "..", lcd_sd_updir);
     }
 
+    #ifdef RESUME_FEATURE
+      static uint16_t forbidden_encpos = 0;
+    #endif
     for(uint16_t i=0;i<fileCnt;i++)
     {
+        #ifdef RESUME_FEATURE
+          if(forbidden_encpos && found_resume_gcode && (encoderPosition / ENCODER_STEPS_PER_MENU_ITEM) == forbidden_encpos)
+            encoderPosition++;
+        #endif
         if (_menuItemNr == _lineNr)
         {
             #ifndef SDCARD_RATHERRECENTFIRST
@@ -1149,8 +1161,14 @@ void lcd_sdcard_menu()
                     MENU_ITEM(sdfile, MSG_CARD_MENU, card.filename, card.longFilename);
                   else
                   {
+                    forbidden_encpos = _menuItemNr;
+                    SERIAL_ECHOLN("encpos: ");
+                    SERIAL_ECHOLN(encoderPosition / ENCODER_STEPS_PER_MENU_ITEM);
+                    SERIAL_ECHOLN("menuItemNr: ");
+                    SERIAL_ECHOLN((int)(_menuItemNr));
                     MENU_ITEM_DUMMY();
                     _lineNr++;
+                    lcdDrawUpdate=1;
                   }
                 #endif
             }

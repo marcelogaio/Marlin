@@ -1701,6 +1701,10 @@ void process_commands()
     case 28: //G28 Home all Axis one at a time
       #ifdef RESUME_FEATURE
         if (resume_print && !home_x_and_y) return; // Disable homing if resuming print
+        enable_x();
+        enable_y();
+        enable_z();
+        enable_e0();
       #endif //RESUME_FEATURE
 #ifdef ENABLE_AUTO_BED_LEVELING
   #ifdef RESUME_FEATURE
@@ -2400,7 +2404,7 @@ void process_commands()
       //if(code_seen('P'))
         //planner_disabled_below_z = code_value();
         enquecommand("G27");
-        enquecommand("G28\0");
+        enquecommand("G28");
       }
       else if (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
       {

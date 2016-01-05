@@ -653,7 +653,9 @@ void check_axes_activity()
     }
     else if (z > last_z && gone_up) // up twice
     {
-      current_layer++; // be careful with prints like the spiral vase
+      if(z - last_z < 0.05) // spiral vase protection
+        return;
+      current_layer++;
       #ifdef RESUME_FEATURE
         if(!check_if_sdprinting() && !resume_print)
         {
