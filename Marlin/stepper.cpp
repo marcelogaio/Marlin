@@ -1245,6 +1245,13 @@ void st_set_position(const long &x, const long &y, const long &z, const long &e)
   CRITICAL_SECTION_END;
 }
 
+void st_set_z_position(const long &z)
+{
+  CRITICAL_SECTION_START;
+  count_position[Z_AXIS] = z;
+  CRITICAL_SECTION_END;
+}
+
 void st_set_e_position(const long &e)
 {
   CRITICAL_SECTION_START;

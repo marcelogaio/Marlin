@@ -72,17 +72,19 @@ static void lcd_control_retract_menu();
 static void lcd_sdcard_menu();
 
 #ifdef RESUME_FEATURE
-  static void lcd_sdcard_resume_menu();
-  static void lcd_sdcard_print_menu();
+  static void resume_menu();
   bool resume_selected = false;
+  bool selected_resume_once = false;
+  bool call_lcd_sdcard_menu = false;
   bool resume_print = false;
-  bool beep_once = true;
   extern float planner_disabled_below_z;
   extern float last_z;
   extern bool z_reached;
   extern bool layer_reached;
   extern bool hops;
   extern bool gone_up;
+  char contfilename[26];
+  char resumefilename[14] = "RESUME~1.GCO\0";
 #endif //RESUME_FEATURE
 
 #ifdef DELTA_CALIBRATION_MENU
@@ -361,12 +363,21 @@ static void lcd_sdcard_stop()
 
     #ifdef RESUME_FEATURE
       planner_disabled_below_z = 0;
+      selected_resume_once = false;
     #endif //RESUME_FEATURE
 }
 
 /* Menu implementation */
 static void lcd_main_menu()
 {
+    #ifdef RESUME_FEATURE
+      if(call_lcd_sdcard_menu)
+      {
+        lcd_goto_menu(lcd_sdcard_menu);
+        call_lcd_sdcard_menu = false;
+        return;
+      }
+    #endif
     START_MENU();
     MENU_ITEM(back, MSG_WATCH, lcd_status_screen);
     if (movesplanned() || IS_SD_PRINTING)
@@ -392,10 +403,7 @@ static void lcd_main_menu()
             MENU_ITEM(function, MSG_STOP_PRINT, lcd_sdcard_stop);
         }else if (!movesplanned() && !IS_SD_PRINTING){
           #ifdef RESUME_FEATURE
-            beep_once = true;
-            MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_print_menu);
-            if (sd_position > 0 /*&& current_position[Z_AXIS] > 0 && current_position[Z_AXIS] != Z_RAISE_AFTER_HOMING*/)
-              MENU_ITEM(submenu, MSG_CARD_RESUME_MENU, lcd_sdcard_resume_menu);
+            MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_menu);
           #endif //RESUME_FEATURE
 #if SDCARDDETECT < 1
             MENU_ITEM(gcode, MSG_CNG_SDCARD, PSTR("M21"));  // SD-card changed by user
@@ -408,6 +416,9 @@ static void lcd_main_menu()
 #endif
     }
 #endif
+    #ifdef RESUME_FEATURE
+      selected_resume_once = false;
+    #endif
     END_MENU();
 }
 
@@ -1039,24 +1050,53 @@ static void lcd_sd_updir()
 }
 
 #ifdef RESUME_FEATURE
-  // Print from SD
-  void lcd_sdcard_print_menu() {
-    resume_selected = false;
-    resume_print = false;
-    planner_disabled_below_z = 0;
-    lcd_sdcard_menu();
-  }
-
-  // Print from SD but set flag to ignore movements below a certain Z
-  void lcd_sdcard_resume_menu() {
-    resume_selected = true;
-    last_z = 0;
-    z_reached = false;
-    layer_reached = false;
-    hops = false;
-    gone_up = false;
-    noTone(BEEPER);
-    lcd_sdcard_menu();
+  void resume_menu()
+  {
+    if((int)encoderPosition != 0) {
+      if((int)encoderPosition > 0)
+        resume_selected = true;
+      else
+        resume_selected = false;
+      encoderPosition = 0;
+      lcdDrawUpdate = 1;
+    }
+    if (lcdDrawUpdate)
+    {
+      u8g.drawStr(5,30,"Continue Last Print:");
+      if(resume_selected)
+      {
+        u8g.setColorIndex(0);
+        u8g.drawBox(30,41,15,11);
+        u8g.setColorIndex(1);
+        u8g.drawStr(32,50,"No");
+        u8g.setColorIndex(1);
+        u8g.drawBox(70,41,21,11);
+        u8g.setColorIndex(0);
+        u8g.drawStr(72,50,"Yes");
+      }
+      else
+      {
+        u8g.setColorIndex(1);
+        u8g.drawBox(30,41,15,11);
+        u8g.setColorIndex(0);
+        u8g.drawStr(32,50,"No");
+        u8g.setColorIndex(0);
+        u8g.drawBox(70,41,21,11);
+        u8g.setColorIndex(1);
+        u8g.drawStr(72,50,"Yes");
+      }
+    }
+    if (LCD_CLICKED)
+    {
+      selected_resume_once = true;
+      if(resume_selected)
+      {
+        resume_selected = false;
+        menu_action_sdfile(resumefilename, '\0');
+      }
+      else
+        call_lcd_sdcard_menu = true;
+    }
   }
 #endif //RESUME_FEATURE
 
@@ -1064,10 +1104,19 @@ void lcd_sdcard_menu()
 {
     if (lcdDrawUpdate == 0 && LCD_CLICKED == 0)
         return;	// nothing to do (so don't thrash the SD card)
-    #ifdef RESUME_FEATURE
-      resume_print = false;
-    #endif
     uint16_t fileCnt = card.getnrfilenames();
+    #ifdef RESUME_FEATURE
+      card.getWorkDirName();
+      for(uint16_t i=0;i<fileCnt;i++)
+      {
+        card.getfilename(fileCnt-1-i);
+        if(strstr(card.filename, resumefilename) != NULL && !selected_resume_once) //found a resume gcode file!
+        {
+            resume_menu();
+            return;
+        }
+      }
+    #endif
     START_MENU();
     MENU_ITEM(back, MSG_MAIN, lcd_main_menu);
     card.getWorkDirName();
@@ -1093,19 +1142,22 @@ void lcd_sdcard_menu()
             {
                 MENU_ITEM(sddirectory, MSG_CARD_MENU, card.filename, card.longFilename);
             }else{
-                MENU_ITEM(sdfile, MSG_CARD_MENU, card.filename, card.longFilename);
+                #ifndef RESUME_FEATURE
+                  MENU_ITEM(sdfile, MSG_CARD_MENU, card.filename, card.longFilename);
+                #else
+                  if(strstr(card.filename, resumefilename) == NULL)
+                    MENU_ITEM(sdfile, MSG_CARD_MENU, card.filename, card.longFilename);
+                  else
+                  {
+                    MENU_ITEM_DUMMY();
+                    _lineNr++;
+                  }
+                #endif
             }
         }else{
             MENU_ITEM_DUMMY();
         }
     }
-    #ifdef RESUME_FEATURE
-     if(resume_selected && beep_once)
-      {
-        tone(BEEPER, 1750);
-        beep_once = false;
-      }
-    #endif
     END_MENU();
 }
 
@@ -1216,24 +1268,29 @@ static void menu_action_gcode(const char* pgcode) { enquecommand_P(pgcode); }
 static void menu_action_function(menuFunc_t data) { (*data)(); }
 static void menu_action_sdfile(const char* filename, char* longFilename)
 {
-    #ifdef RESUME_FEATURE
-    if(resume_selected)
-    {
-        /*
-        if(current_position[Z_AXIS] != 0 && current_position[Z_AXIS] != 10 && current_position[Z_AXIS] != planner_disabled_below_z)
-          planner_disabled_below_z = current_position[Z_AXIS];
-        */
-        enquecommand("M19");
-        //enquecommand("G27");
-    }
-    #endif
     char cmd[30];
     char* c;
     sprintf_P(cmd, PSTR("M23 %s"), filename);
     for(c = &cmd[4]; *c; c++)
         *c = tolower(*c);
-    enquecommand(cmd);
-    enquecommand_P(PSTR("M24"));
+    #ifdef RESUME_FEATURE
+      for(int i=0; i<26; i++) contfilename[i] = filename[i];
+
+      if(strstr(card.filename, resumefilename) != NULL)
+      {
+        cmd[1] = '3';
+        cmd[2] = '2';
+        enquecommand(cmd);
+      }
+      else
+      {
+        card.removeFile(resumefilename); // delete the old resume file
+    #endif
+        enquecommand(cmd);
+        enquecommand_P(PSTR("M24"));
+    #ifdef RESUME_FEATURE
+      }
+    #endif
     lcd_return_to_status();
 }
 static void menu_action_sddirectory(const char* filename, char* longFilename)

@@ -39,7 +39,7 @@ void Config_StoreLevel()
 }
 #endif
 
-#ifdef RESUME_FEATURE
+#ifdef RESUME_EEPROM_FEATURE
 int i_z;
 
 void Config_StoreZ()
@@ -174,7 +174,7 @@ void Config_StoreSettings()
   */
   EEPROM_WRITE_VAR(i,plane_equation_coefficients);
   #endif
-  #ifdef RESUME_FEATURE
+  #ifdef RESUME_EEPROM_FEATURE
   i_z = i;
   /*
   SERIAL_ECHO_START;
@@ -356,7 +356,7 @@ SERIAL_ECHOLNPGM("Scaling factors:");
     SERIAL_PROTOCOL_F(plane_equation_coefficients[2], 6);
     SERIAL_ECHOLN("");
 #endif
-#ifdef RESUME_FEATURE
+#ifdef RESUME_EEPROM_FEATURE
     SERIAL_ECHO_START;
     SERIAL_PROTOCOLPGM("Resume from Z:");
     SERIAL_ECHO_START;
@@ -473,7 +473,7 @@ void Config_RetrieveSettings()
                 EEPROM_READ_VAR(i,plane_equation_coefficients);
                 #endif
 
-                #ifdef RESUME_FEATURE
+                #ifdef RESUME_EEPROM_FEATURE
                 i_z = i;
                 /*
                 SERIAL_ECHO_START;
@@ -603,7 +603,7 @@ void Config_ResetDefault()
         plane_equation_coefficients[1] = 0.0;
         plane_equation_coefficients[2] = 0.0;
 #endif
-#ifdef RESUME_FEATURE
+#ifdef RESUME_EEPROM_FEATURE
         planner_disabled_below_z = 0.0;
 
         sd_position = 0;

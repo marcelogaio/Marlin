@@ -469,16 +469,21 @@ void serial_echopair_P(const char *s_P, unsigned long v)
 //adds an command to the main command buffer
 //thats really done in a non-safe way.
 //needs overworking someday
-void enquecommand(const char *cmd)
-{
+void enquecommand(const char *cmd){
   if(buflen < BUFSIZE)
   {
     //this is dangerous if a mixing of serial and this happens
     strcpy(&(cmdbuffer[bufindw][0]),cmd);
+    #ifdef RESUME_FEATURE
+      if(strstr(cmd, "resume~1.gco") == NULL) {
+    #endif
     SERIAL_ECHO_START;
     SERIAL_ECHOPGM(MSG_Enqueing);
     SERIAL_ECHO(cmdbuffer[bufindw]);
     SERIAL_ECHOLNPGM("\"");
+    #ifdef RESUME_FEATURE
+      }
+    #endif
     bufindw= (bufindw + 1)%BUFSIZE;
     buflen += 1;
   }
@@ -712,7 +717,7 @@ void loop()
     buflen = (buflen-1);
     bufindr = (bufindr + 1)%BUFSIZE;
     #ifdef RESUME_PRINT
-      if(resume_print && !sd_position_set && card.getSDpos() > 10240)
+      if(resume_print && !sd_position_set && card.getSDpos() > 10240) //TODO: test this!
       {
         card.setIndex(sd_position-10240);
         card.getStatus();
@@ -734,6 +739,57 @@ bool check_if_sdprinting() {
 uint32_t get_sdposition() {
   return card.getSDpos();
 }
+
+#ifdef RESUME_FEATURE
+void SD_StoreCardPos() {
+  uint32_t sdpos = card.getSDpos();
+  card.closefile();
+  card.openFile(resumefilename,false,true,true);
+
+  static char pos_cmd[27];
+  if(pos_cmd[0] != 'M')
+    strcpy(pos_cmd, "M19 S");
+  for(int i=5; i<15; i++)
+    pos_cmd[i] = '\0';
+  char sdpos_str[10]; //maximum of 10 digits in a uint32_t
+  ultoa(sdpos, sdpos_str, 10);
+  strcat(pos_cmd, sdpos_str);
+
+//strcat(pos_cmd, " P");
+//char zpos_str[10];
+//dtostrf(current_position[Z_AXIS], 4, 6, zpos_str);
+//strcat(pos_cmd, zpos_str);
+
+  card.write_command(pos_cmd); //resume command
+
+  static char contfile_cmd[30];
+  if(contfile_cmd[0] != 'M')
+    strcpy(contfile_cmd, "M32 ");
+  for(int i=4; i<30; i++)
+    contfile_cmd[i] = '\0';
+  strcat(contfile_cmd, contfilename);
+
+  char* c;
+  for(c = &contfile_cmd[4]; *c; c++)
+    *c = tolower(*c);
+
+  card.write_command(contfile_cmd); //select file command
+
+  card.closefile();
+
+/*SERIAL_ECHO("Command written: ");
+  SERIAL_ECHO(contfile_cmd);
+  SERIAL_ECHOLN("");
+
+  SERIAL_ECHO("Trying to open: ");
+  SERIAL_ECHO(contfilename);
+  SERIAL_ECHOLN("");*/
+
+  card.openFile(contfilename,true,true,true);
+  card.startFileprint();
+  card.setIndex(sdpos);
+}
+#endif
 
 void clear_buffer() {
   for(uint8_t i=0; i < BUFSIZE; i++)
@@ -916,9 +972,20 @@ void get_command()
         #ifdef RESUME_FEATURE
           resume_print = false;
           planner_disabled_below_z = 0.0;
-          Config_StoreZ();
           sd_position = 0;
-          Config_StoreCardPos();
+          static char delresfile_cmd[30];
+          if(delresfile_cmd[0] != 'M')
+            strcpy(delresfile_cmd, "M30 ");
+          for(int i=4; i<30; i++)
+            delresfile_cmd[i] = '\0';
+          strcat(delresfile_cmd, resumefilename);
+          strcpy(&(cmdbuffer[bufindw][0]), delresfile_cmd); // delete the resume file
+          bufindw= (bufindw + 1)%BUFSIZE;
+          buflen += 1;
+          #ifdef RESUME_EEPROM_FEATURE
+            Config_StoreZ();
+            Config_StoreCardPos();
+          #endif
         #endif //RESUME_FEATURE
         card.checkautostart(true);
       }
@@ -1633,7 +1700,7 @@ void process_commands()
 
     case 28: //G28 Home all Axis one at a time
       #ifdef RESUME_FEATURE
-        if (resume_print) return; // Disable homing if resuming print
+        if (resume_print && !home_x_and_y) return; // Disable homing if resuming print
       #endif //RESUME_FEATURE
 #ifdef ENABLE_AUTO_BED_LEVELING
   #ifdef RESUME_FEATURE
@@ -1766,6 +1833,10 @@ void process_commands()
       }
       #endif
 
+      if((home_all_axis) || (code_seen(axis_codes[Y_AXIS]))) {
+        HOMEAXIS(Y);
+      }
+
       if((home_all_axis) || (code_seen(axis_codes[X_AXIS])))
       {
       #ifdef DUAL_X_CARRIAGE
@@ -1783,10 +1854,6 @@ void process_commands()
       #else
         HOMEAXIS(X);
       #endif
-      }
-
-      if((home_all_axis) || (code_seen(axis_codes[Y_AXIS]))) {
-        HOMEAXIS(Y);
       }
 
       if(code_seen(axis_codes[X_AXIS]))
@@ -1886,7 +1953,7 @@ void process_commands()
               feedrate = max_feedrate[Z_AXIS];
               plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], destination[Z_AXIS], current_position[E_AXIS], feedrate, active_extruder);
               st_synchronize();
-          }
+            }
       #endif
 
       #ifdef Z_RAISE_AFTER_HOMING
@@ -1895,7 +1962,7 @@ void process_commands()
             && !home_x_and_y
           #endif
           ) {
-        current_position[Z_AXIS] += Z_RAISE_AFTER_HOMING - Z_MIN_POS; //Sets Z distance back to 0 for auto leveling
+              current_position[Z_AXIS] += Z_RAISE_AFTER_HOMING - Z_MIN_POS; //Sets Z distance back to 0 for auto leveling
 	    }
       #endif
       /*
@@ -1943,9 +2010,10 @@ void process_commands()
         current_position[Z_AXIS] = 1.0/(axis_steps_per_unit[Z_AXIS]);
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
         do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
-        current_position[Z_AXIS] = planner_disabled_below_z;
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+        //current_position[Z_AXIS] = planner_disabled_below_z;
+        //plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
         axis_known_position[Z_AXIS] = true;
+        home_x_and_y = false;
         resume_print = true;
       }
       #endif
@@ -2325,11 +2393,14 @@ void process_commands()
         resume_print = true;
       }
       */
-      else if (planner_disabled_below_z > 0 && /* current_position[Z_AXIS] == 0 && */ (!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS]))
+      else if (code_seen('S') && /* current_position[Z_AXIS] == 0 && */ (!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS]))
       {
         home_x_and_y = true;
+        sd_position = code_value();
+      //if(code_seen('P'))
+        //planner_disabled_below_z = code_value();
         enquecommand("G27");
-        enquecommand("G28");
+        enquecommand_P((PSTR("G28")));
       }
       else if (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
       {
@@ -2416,6 +2487,11 @@ void process_commands()
         st_synchronize();
 
       }
+
+      #ifdef RESUME_FEATURE
+        card.closefile();
+      #endif
+
       starpos = (strchr(strchr_pointer + 4,'*'));
 
       char* namestartpos = (strchr(strchr_pointer + 4,'!'));   //find ! to indicate filename string start.
@@ -2437,6 +2513,9 @@ void process_commands()
       if( card.cardOK )
       {
         card.openFile(namestartpos,true,!call_procedure);
+        #ifdef RESUME_FEATURE
+          for(int i=0; i<26; i++) contfilename[i] = namestartpos[i];
+        #endif
         if(code_seen('S'))
           if(strchr_pointer<namestartpos) //only if "S" is occuring _before_ the filename
             card.setIndex(code_value_long());

@@ -634,7 +634,10 @@ void check_axes_activity()
             if(!resume_print)
             {
               planner_disabled_below_z = z - 1.0/(axis_steps_per_unit[Z_AXIS]);
-              Config_StoreZ();
+              //SD_StoreZ();
+              #ifdef RESUME_EEPROM_FEATURE
+                Config_StoreZ();
+              #endif
             }
           #endif
         #else
@@ -652,15 +655,21 @@ void check_axes_activity()
     {
       current_layer++; // be careful with prints like the spiral vase
       #ifdef RESUME_FEATURE
-        if(!resume_print)
+        if(!check_if_sdprinting() && !resume_print)
         {
           planner_disabled_below_z = z - 1.0/(axis_steps_per_unit[Z_AXIS]);
-          Config_StoreZ();
+          //SD_StoreZ();
+          #ifdef RESUME_EEPROM_FEATURE
+            Config_StoreZ();
+          #endif
         }
-        if(check_if_sdprinting() && get_sdposition() > 10240 && get_sdposition() > sd_position)
+        else if(check_if_sdprinting() && !resume_print && get_sdposition() > 10240 && get_sdposition() > sd_position)
         {
           sd_position = get_sdposition();
-          Config_StoreCardPos();
+          SD_StoreCardPos();
+          #ifdef RESUME_EEPROM_FEATURE
+            Config_StoreCardPos();
+          #endif
         }
       #endif
     }
@@ -686,6 +695,7 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
   #ifdef RESUME_FEATURE
     if(floor_z(z))
     {
+      plan_set_z_position(z);
       plan_set_e_position(e);
       return;
     }
@@ -1226,6 +1236,12 @@ void plan_set_position(const float &x, const float &y, const float &z, const flo
   previous_speed[1] = 0.0;
   previous_speed[2] = 0.0;
   previous_speed[3] = 0.0;
+}
+
+void plan_set_z_position(const float &z)
+{
+  position[Z_AXIS] = lround(z*axis_steps_per_unit[Z_AXIS]);  
+  st_set_z_position(position[Z_AXIS]);
 }
 
 void plan_set_e_position(const float &e)

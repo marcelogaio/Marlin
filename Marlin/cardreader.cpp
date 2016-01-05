@@ -247,7 +247,7 @@ void CardReader::getAbsFilename(char *t)
     t[0]=0;
 }
 
-void CardReader::openFile(char* name,bool read, bool replace_current/*=true*/)
+void CardReader::openFile(char* name,bool read, bool replace_current/*=true*/, bool silence/*=false*/)
 {
   if(!cardOK)
     return;
@@ -289,9 +289,11 @@ void CardReader::openFile(char* name,bool read, bool replace_current/*=true*/)
   else //opening fresh file
   {
     file_subcall_ctr=0; //resetting procedure depth in case user cancels print while in procedure
-    SERIAL_ECHO_START;
-    SERIAL_ECHOPGM("Now fresh file: ");
-    SERIAL_ECHOLN(name);
+    if(!silence){
+      SERIAL_ECHO_START;
+      SERIAL_ECHOPGM("Now fresh file: ");
+      SERIAL_ECHOLN(name);
+    }
   }
   sdprinting = false;
   
@@ -349,13 +351,16 @@ void CardReader::openFile(char* name,bool read, bool replace_current/*=true*/)
     if (file.open(curDir, fname, O_READ)) 
     {
       filesize = file.fileSize();
-      SERIAL_PROTOCOLPGM(MSG_SD_FILE_OPENED);
-      SERIAL_PROTOCOL(fname);
-      SERIAL_PROTOCOLPGM(MSG_SD_SIZE);
-      SERIAL_PROTOCOLLN(filesize);
+      if(!silence){
+        SERIAL_PROTOCOLPGM(MSG_SD_FILE_OPENED);
+        SERIAL_PROTOCOL(fname);
+        SERIAL_PROTOCOLPGM(MSG_SD_SIZE);
+        SERIAL_PROTOCOLLN(filesize);
+      }
       sdpos = 0;
       
-      SERIAL_PROTOCOLLNPGM(MSG_SD_FILE_SELECTED);
+      if(!silence)
+        SERIAL_PROTOCOLLNPGM(MSG_SD_FILE_SELECTED);
       getfilename(0, fname);
       lcd_setstatus(longFilename[0] ? longFilename : fname);
     }
@@ -377,8 +382,10 @@ void CardReader::openFile(char* name,bool read, bool replace_current/*=true*/)
     else
     {
       saving = true;
-      SERIAL_PROTOCOLPGM(MSG_SD_WRITE_TO_FILE);
-      SERIAL_PROTOCOLLN(name);
+      if(!silence){
+        SERIAL_PROTOCOLPGM(MSG_SD_WRITE_TO_FILE);
+        SERIAL_PROTOCOLLN(name);
+      }
       lcd_setstatus(fname);
     }
   }

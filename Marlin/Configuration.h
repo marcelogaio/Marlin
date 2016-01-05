@@ -533,7 +533,8 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 //(either from the current location when selecting Menu > Resume SD from Z > file.gcode or just M19; or with M19 Z(some number here)),
 //it also compensates for z-lifts around the given threshold.
 
-//#define RESUME_FEATURE
+#define RESUME_FEATURE
+//#define RESUME_EEPROM_FEATURE
 
 //===========================================================================
 //============================== Layer Tracking =============================

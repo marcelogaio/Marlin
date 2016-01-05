@@ -525,10 +525,8 @@ void manage_heater()
             LCD_MESSAGEPGM("Heating failed");
             SERIAL_ECHO_START;
             SERIAL_ECHOLN("Heating failed");
-            watchmillis[e] = 0;
-        }else{
-            watchmillis[e] = 0;
         }
+        watchmillis[e] = 0;
     }
     #endif
     #ifdef TEMP_SENSOR_1_AS_REDUNDANT
