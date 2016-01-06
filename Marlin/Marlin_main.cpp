@@ -968,7 +968,6 @@ void get_command()
         SERIAL_ECHO_START;
         SERIAL_ECHOLN(time);
         lcd_setstatus(time);
-        card.printingHasFinished();
         #ifdef RESUME_FEATURE
           resume_print = false;
           planner_disabled_below_z = 0.0;
@@ -988,6 +987,7 @@ void get_command()
             Config_StoreCardPos();
           #endif
         #endif //RESUME_FEATURE
+        card.printingHasFinished();
         card.checkautostart(true);
       }
       if(serial_char=='#')
