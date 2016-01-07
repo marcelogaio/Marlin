@@ -64,7 +64,7 @@
 #define CONTROLLERFAN_PIN FAN2_PIN //Pin used for the fan to cool controller (-1 to disable)
 #define CONTROLLERFAN_SECS 60 //How many seconds, after all motors were disabled, the fan should run
 #define CONTROLLERFAN_SPEED_START 255 //Startup fan speed
-#define CONTROLLERFAN_SPEED_FULL 130  // == full speed
+#define CONTROLLERFAN_SPEED_FULL 255  // == full speed
 #define CONTROLLERFAN_SPEED_IDLE 60 //Idle speed when motors are inactive
 #define CONTROLLERFAN_SPEED_MAX 255 // Max limit for fan 
 #define CONTROLLERFAN_SPEED_MIN 0  //Minimum that fan will start without push
