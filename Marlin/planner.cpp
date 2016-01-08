@@ -84,6 +84,8 @@ bool jumpstart_fan = true;
   bool layer_reached = false;
   bool hops = false;
   bool gone_up = false;
+  bool sd_position_set = false;
+  extern bool move_z_before_resume;
 #endif //RESUME_FEATURE
 #ifdef TRACK_LAYER
   unsigned short current_layer = 0;
@@ -570,12 +572,13 @@ void check_axes_activity()
   {
     if(resume_print)
     {
-      if(check_if_sdprinting() && get_sdposition() > sd_position)
+      if(check_if_sdprinting() && get_sdposition() >= sd_position)
       {
+        sd_position_set = false;
         resume_print = false;
         return false;
       }
-      else if(check_if_sdprinting() && get_sdposition() < sd_position)
+      else if(check_if_sdprinting())
       {
         return true;
       }
@@ -673,6 +676,11 @@ void check_axes_activity()
             Config_StoreCardPos();
           #endif
         }
+        else if(resume_print && !sd_position_set && get_sdposition() > 10240) //TODO: test this!
+        {
+          set_resume_sdposition();
+          sd_position_set = true;
+        }
       #endif
     }
 
@@ -697,9 +705,17 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
   #ifdef RESUME_FEATURE
     if(floor_z(z))
     {
-      plan_set_z_position(z);
+      if(!move_z_before_resume)
+        plan_set_z_position(z);
       plan_set_e_position(e);
       return;
+    }
+    else if(move_z_before_resume)
+    {
+      if(/*position[Z_AXIS] == Z_RAISE_AFTER_HOMING*/z < 2.0) // make an exception if you're at Z_RAISE_AFTER_HOMING
+        return;
+      else
+        ;//move_z_before_resume = false;
     }
   #endif
 

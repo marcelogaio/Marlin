@@ -180,6 +180,7 @@ void ClearToSend();
 bool check_if_sdprinting();
 uint32_t get_sdposition();
 #ifdef RESUME_FEATURE
+  void set_resume_sdposition();
   void SD_StoreCardPos();
 #endif
 void clear_buffer();
@@ -250,6 +251,7 @@ extern double plane_equation_coefficients[3];
   extern uint32_t sd_position;
   extern char contfilename[26];
   extern char resumefilename[14];
+  extern bool move_z_before_resume;
 #endif
 #ifdef TRACK_LAYER
   extern float last_layer_z;

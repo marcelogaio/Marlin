@@ -358,10 +358,10 @@ bool change_filament = false;
 #ifdef RESUME_FEATURE
   extern float planner_disabled_below_z;
   extern bool resume_print;
-  bool sd_position_set = false;
   bool home_x_and_y;
   extern uint32_t sd_position;
   extern bool layer_reached;
+  bool move_z_before_resume = false;
 #endif //RESUME_FEATURE
 
 double plane_equation_coefficients[3] = {0.0, 0.0, 0.0};
@@ -716,14 +716,6 @@ void loop()
     #endif //SDSUPPORT
     buflen = (buflen-1);
     bufindr = (bufindr + 1)%BUFSIZE;
-    #ifdef RESUME_PRINT
-      if(resume_print && !sd_position_set && card.getSDpos() > 10240) //TODO: test this!
-      {
-        card.setIndex(sd_position-10240);
-        card.getStatus();
-        sd_position_set = true;
-      }
-    #endif
   }
   //check heater every n milliseconds
   manage_heater();
@@ -741,8 +733,11 @@ uint32_t get_sdposition() {
 }
 
 #ifdef RESUME_FEATURE
+void set_resume_sdposition() {
+  card.setIndex(sd_position-10240);
+}
+
 void SD_StoreCardPos() {
-  uint32_t sdpos = card.getSDpos();
   card.closefile();
   card.openFile(resumefilename,false,true,true);
 
@@ -752,7 +747,7 @@ void SD_StoreCardPos() {
   for(int i=5; i<15; i++)
     pos_cmd[i] = '\0';
   char sdpos_str[10]; //maximum of 10 digits in a uint32_t
-  ultoa(sdpos, sdpos_str, 10);
+  ultoa(sd_position, sdpos_str, 10);
   strcat(pos_cmd, sdpos_str);
 
 //strcat(pos_cmd, " P");
@@ -787,7 +782,7 @@ void SD_StoreCardPos() {
 
   card.openFile(contfilename,true,true,true);
   card.startFileprint();
-  card.setIndex(sdpos);
+  card.setIndex(sd_position);
 }
 #endif
 
@@ -1701,7 +1696,15 @@ void process_commands()
 
     case 28: //G28 Home all Axis one at a time
       #ifdef RESUME_FEATURE
-        if (resume_print && !home_x_and_y) return; // Disable homing if resuming print
+        if(resume_print && !home_x_and_y) break; // Disable homing if resuming print
+        else if(move_z_before_resume)
+        {
+          do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], Z_MAX_POS);
+          current_position[Z_AXIS] += 1.0/(axis_steps_per_unit[Z_AXIS]);
+          plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+          resume_print = true;
+          break;
+        }
         enable_x();
         enable_y();
         enable_z();
@@ -2398,20 +2401,17 @@ void process_commands()
         resume_print = true;
       }
       */
-      else if (code_seen('S') && /* current_position[Z_AXIS] == 0 && */ (!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS]))
+      else if (code_seen('S')/*&& current_position[Z_AXIS] == 0*/)
       {
-        home_x_and_y = true;
+        if(!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS])
+          home_x_and_y = true;
+        else if(axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
+          move_z_before_resume = true;
         sd_position = code_value();
       //if(code_seen('P'))
         //planner_disabled_below_z = code_value();
         enquecommand("G27");
         enquecommand("G28");
-      }
-      else if (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
-      {
-        do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], planner_disabled_below_z);
-        resume_print = true;
-        enquecommand("G27");
       }
       else
         SERIAL_ERRORLNPGM("Resume from Z <= 0\n");
@@ -3252,6 +3252,11 @@ Sigma_Exit:
       break;
     case 18: //compatibility
     case 84: // M84
+      if(resume_print)
+      {
+        SERIAL_ECHOLN("LEAVING");
+        break;
+      }
       if(code_seen('S')){
         stepper_inactive_time = code_value() * 1000;
       }
