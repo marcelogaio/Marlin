@@ -450,7 +450,7 @@ void lcd_set_home_offsets()
 
 #ifdef BABYSTEPPING
   static void _lcd_babystep(int axis, const char *msg) {
-    if (/*encoderPosition != 0 && */((int)encoderPosition < 0 || 1.000 < zprobe_zoffset) && (zprobe_zoffset < 2.000 || (int)encoderPosition > 0)) {
+    if (/*encoderPosition != 0 && */((int)encoderPosition < 0 || 0.000 < zprobe_zoffset) && (zprobe_zoffset < 2.000 || (int)encoderPosition > 0)) {
       babystepsTodo[axis] += (int)encoderPosition;
       zprobe_zoffset -= (int)encoderPosition/axis_steps_per_unit[Z_AXIS];
       encoderPosition = 0;
@@ -461,7 +461,7 @@ void lcd_set_home_offsets()
     else if (lcdDrawUpdate && axis == Z_AXIS)
     {
       lcd_implementation_drawedit(msg, ftostr43(-1.0*zprobe_zoffset));
-      uint8_t noz_pos = 12*(zprobe_zoffset - 1.0);
+      uint8_t noz_pos = 6*(zprobe_zoffset);
       u8g.drawBitmapP(66,noz_pos,2,12,nozzle_bmp);
       u8g.drawBitmapP(60,24,3,1,offset_bedline_bmp);
       u8g.drawBitmapP(1,47,3,16,cw_bmp);
@@ -1090,10 +1090,7 @@ static void lcd_sd_updir()
     {
       selected_resume_once = true;
       if(resume_selected)
-      {
-        resume_selected = false;
         menu_action_sdfile(resumefilename, '\0');
-      }
       else
         call_lcd_sdcard_menu = true;
     }
@@ -1162,10 +1159,10 @@ void lcd_sdcard_menu()
                   else
                   {
                     forbidden_encpos = _menuItemNr;
-                    SERIAL_ECHOLN("encpos: ");
+                  /*SERIAL_ECHOLN("encpos: ");
                     SERIAL_ECHOLN(encoderPosition / ENCODER_STEPS_PER_MENU_ITEM);
                     SERIAL_ECHOLN("menuItemNr: ");
-                    SERIAL_ECHOLN((int)(_menuItemNr));
+                    SERIAL_ECHOLN((int)(_menuItemNr));*/
                     MENU_ITEM_DUMMY();
                     _lineNr++;
                     lcdDrawUpdate=1;
@@ -1296,13 +1293,15 @@ static void menu_action_sdfile(const char* filename, char* longFilename)
 
       if(strstr(card.filename, resumefilename) != NULL)
       {
+        resume_selected = false;
         cmd[1] = '3';
         cmd[2] = '2';
         enquecommand(cmd);
       }
       else
       {
-        card.removeFile(resumefilename, true); // delete the old resume file
+        if(!resume_selected)
+          card.removeFile(resumefilename, true); // delete the old resume file
     #endif
         enquecommand(cmd);
         enquecommand_P(PSTR("M24"));
