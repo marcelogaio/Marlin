@@ -6,7 +6,7 @@
 // #error "You must specify the following parameters related to your distribution"
 
 #if true
-#define SHORT_BUILD_VERSION "1.0.2.8"
+#define SHORT_BUILD_VERSION "1.0.2.9"
 #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " Lulzbot"
 #define STRING_DISTRIBUTION_DATE "2015-10-00 12:00"
 // It might also be appropriate to define a location where additional information can be found
