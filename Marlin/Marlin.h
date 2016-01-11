@@ -248,10 +248,12 @@ extern double plane_equation_coefficients[3];
 #ifdef RESUME_FEATURE
   extern float planner_disabled_below_z;
   extern bool resume_print;
+  extern bool print_resumed;
   extern uint32_t sd_position;
   extern char contfilename[26];
   extern char resumefilename[14];
   extern bool move_z_before_resume;
+  extern float before_resume_xy[2];
 #endif
 #ifdef TRACK_LAYER
   extern float last_layer_z;

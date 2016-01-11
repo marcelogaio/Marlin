@@ -86,6 +86,7 @@ bool jumpstart_fan = true;
   bool gone_up = false;
   bool sd_position_set = false;
   extern bool move_z_before_resume;
+  bool print_resumed = false;
 #endif //RESUME_FEATURE
 #ifdef TRACK_LAYER
   unsigned short current_layer = 0;
@@ -576,6 +577,7 @@ void check_axes_activity()
       {
         sd_position_set = false;
         resume_print = false;
+        print_resumed = true;
         return false;
       }
       else if(check_if_sdprinting())
@@ -710,12 +712,11 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
       plan_set_e_position(e);
       return;
     }
-    else if(move_z_before_resume)
+    if(print_resumed && move_z_before_resume)
     {
-      if(/*position[Z_AXIS] == Z_RAISE_AFTER_HOMING*/z < 2.0) // make an exception if you're at Z_RAISE_AFTER_HOMING
-        return;
-      else
-        ;//move_z_before_resume = false;
+      x = before_resume_xy[X_AXIS];
+      y = before_resume_xy[Y_AXIS];
+      move_z_before_resume = false;
     }
   #endif
 

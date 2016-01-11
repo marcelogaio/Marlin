@@ -358,10 +358,12 @@ bool change_filament = false;
 #ifdef RESUME_FEATURE
   extern float planner_disabled_below_z;
   extern bool resume_print;
+  extern bool print_resumed;
   bool home_x_and_y;
   extern uint32_t sd_position;
   extern bool layer_reached;
   bool move_z_before_resume = false;
+  float before_resume_xy[] = {0, 0};
 #endif //RESUME_FEATURE
 
 double plane_equation_coefficients[3] = {0.0, 0.0, 0.0};
@@ -738,6 +740,7 @@ void set_resume_sdposition() {
 }
 
 void SD_StoreCardPos() {
+  if(contfilename == "") return; // ignore autofiles
   card.closefile();
   card.openFile(resumefilename,false,true,true);
 
@@ -965,6 +968,7 @@ void get_command()
         lcd_setstatus(time);
         #ifdef RESUME_FEATURE
           resume_print = false;
+          print_resumed = false;
           planner_disabled_below_z = 0.0;
           sd_position = 0;
           static char delresfile_cmd[30];
@@ -1699,10 +1703,11 @@ void process_commands()
         if(resume_print && !home_x_and_y) break; // Disable homing if resuming print
         else if(move_z_before_resume)
         {
-          do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], Z_MAX_POS);
-          current_position[Z_AXIS] += 1.0/(axis_steps_per_unit[Z_AXIS]);
+          do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS] + 1.0/(axis_steps_per_unit[Z_AXIS]));
+          current_position[Z_AXIS] -= 1.0/(axis_steps_per_unit[Z_AXIS]);
           plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
           resume_print = true;
+          print_resumed = false;
           break;
         }
         enable_x();
@@ -2023,6 +2028,7 @@ void process_commands()
         axis_known_position[Z_AXIS] = true;
         home_x_and_y = false;
         resume_print = true;
+        print_resumed = false;
       }
       #endif
       MYSERIAL.flush();
@@ -2388,6 +2394,7 @@ void process_commands()
         prepare_move();
         st_synchronize();
         resume_print = true;
+        print_resumed = false;
         enquecommand("G27");
         enquecommand("M114"); // tell the host where it is
       }
@@ -2406,7 +2413,11 @@ void process_commands()
         if(!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS])
           home_x_and_y = true;
         else if(axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
+        {
+          before_resume_xy[X_AXIS] = current_position[X_AXIS];
+          before_resume_xy[Y_AXIS] = current_position[Y_AXIS];
           move_z_before_resume = true;
+        }
         sd_position = code_value();
       //if(code_seen('P'))
         //planner_disabled_below_z = code_value();
