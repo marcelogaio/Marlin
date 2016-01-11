@@ -2449,6 +2449,7 @@ void process_commands()
       if(starpos!=NULL)
         *(starpos)='\0';
       card.openFile(strchr_pointer + 4,true);
+      for(int i=0; i<26; i++) contfilename[i] = (strchr_pointer + 4)[i];
       break;
     case 24: //M24 - Start SD print
       card.startFileprint();
