@@ -1081,7 +1081,10 @@ void thermal_runaway_protection(int *state, unsigned long *timer, float temperat
       break;
   }
   if(last_target_temperature[heater_id] < target_temperature)
+  {
+    setWatch();
     target_temp_reached[heater_id] = false;
+  }
   last_target_temperature[heater_id] = target_temperature;
 }
 #endif
