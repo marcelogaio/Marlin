@@ -77,6 +77,7 @@ static void lcd_sdcard_menu();
   bool selected_resume_once = false;
   bool call_lcd_sdcard_menu = false;
   bool resume_print = false;
+  bool examined_once = false;
   extern float planner_disabled_below_z;
   extern float last_z;
   extern bool z_reached;
@@ -371,6 +372,7 @@ static void lcd_sdcard_stop()
 static void lcd_main_menu()
 {
     #ifdef RESUME_FEATURE
+      examined_once = false;
       if(call_lcd_sdcard_menu)
       {
         lcd_goto_menu(lcd_sdcard_menu);
@@ -1045,6 +1047,7 @@ static void lcd_sd_refresh()
 #endif
 static void lcd_sd_updir()
 {
+    examined_once = false;
     card.updir();
     currentMenuViewOffset = 0;
 }
@@ -1105,8 +1108,9 @@ void lcd_sdcard_menu()
     #ifdef RESUME_FEATURE
       bool found_resume_gcode = false;
       card.getWorkDirName();
-      for(uint16_t i=0;i<fileCnt;i++)
+      for(uint16_t i=0;(i<fileCnt && !examined_once);i++)
       {
+        SERIAL_ECHOLN("checking");
         card.getfilename(fileCnt-1-i);
         if(strstr(card.filename, resumefilename) != NULL) //found a resume gcode file!
         {
@@ -1118,6 +1122,7 @@ void lcd_sdcard_menu()
           }
         }
       }
+      examined_once = true;
     #endif
     START_MENU();
     MENU_ITEM(back, MSG_MAIN, lcd_main_menu);
