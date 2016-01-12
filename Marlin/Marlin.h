@@ -249,6 +249,8 @@ extern double plane_equation_coefficients[3];
   extern float planner_disabled_below_z;
   extern bool resume_print;
   extern bool print_resumed;
+  extern bool home_x_and_y;
+  extern bool resume_z;
   extern uint32_t sd_position;
   extern char contfilename[26];
   extern char resumefilename[14];

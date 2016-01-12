@@ -573,17 +573,15 @@ void check_axes_activity()
   {
     if(resume_print)
     {
-      if(check_if_sdprinting() && get_sdposition() >= sd_position)
+      if(check_if_sdprinting() && get_sdposition() >= sd_position && !resume_z)
       {
         sd_position_set = false;
         resume_print = false;
         print_resumed = true;
         return false;
       }
-      else if(check_if_sdprinting())
-      {
+      else if(check_if_sdprinting() && !resume_z)
         return true;
-      }
       // filter out moves below a given floor height and attempt to ignore any hops/travels
       if (planner_disabled_below_z > 0.0 && !layer_reached) {
         if (z < planner_disabled_below_z) {
@@ -670,7 +668,7 @@ void check_axes_activity()
             Config_StoreZ();
           #endif
         }
-        else if(check_if_sdprinting() && !resume_print && get_sdposition() > 10240 && get_sdposition() > sd_position)
+        else if(!resume_z && check_if_sdprinting() && !resume_print && get_sdposition() > 10240 && get_sdposition() > sd_position)
         {
           sd_position = get_sdposition();
           SD_StoreCardPos();
@@ -678,7 +676,7 @@ void check_axes_activity()
             Config_StoreCardPos();
           #endif
         }
-        else if(resume_print && !sd_position_set && get_sdposition() > 10240) //TODO: test this!
+        else if(!resume_z && resume_print && !sd_position_set && get_sdposition() > 10240) //TODO: use layers or percentage instead of 10KBs
         {
           set_resume_sdposition();
           sd_position_set = true;

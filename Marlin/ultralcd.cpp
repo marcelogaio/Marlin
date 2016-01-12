@@ -78,6 +78,7 @@ static void lcd_sdcard_menu();
   bool call_lcd_sdcard_menu = false;
   bool resume_print = false;
   bool examined_once = false;
+  bool resume_z = false;
   extern float planner_disabled_below_z;
   extern float last_z;
   extern bool z_reached;
@@ -265,6 +266,10 @@ static void lcd_status_screen()
     }
 #ifdef ULTIPANEL
 
+#ifdef RESUME_FEATURE
+    call_lcd_sdcard_menu = false;
+#endif
+
     bool current_click = LCD_CLICKED;
 
     if (ignore_click) {
@@ -363,8 +368,9 @@ static void lcd_sdcard_stop()
     clear_buffer(); //clear buffer
 
     #ifdef RESUME_FEATURE
-      planner_disabled_below_z = 0;
+      planner_disabled_below_z = 0.0;
       selected_resume_once = false;
+      resume_z = false;
     #endif //RESUME_FEATURE
 }
 
@@ -947,6 +953,10 @@ static void lcd_control_advanced_menu()
     //MENU_ITEM_EDIT(float43, MSG_ZPROBE_ZOFFSET, &zprobe_zoffset, 0.5, 2.5);
     MENU_ITEM(submenu, MSG_ZPROBE_ZOFFSET, lcd_babystep_zoffset);
 #endif
+#ifdef RESUME_FEATURE
+    if(axis_known_position[Z_AXIS] && current_position[Z_AXIS] != Z_RAISE_AFTER_HOMING && current_position[Z_AXIS] != 0)
+      MENU_ITEM_EDIT(bool, "Resume from Z", &resume_z);
+#endif
     MENU_ITEM_EDIT(float5, MSG_ACC, &acceleration, 500, 99000);
     MENU_ITEM_EDIT(float3, MSG_VXY_JERK, &max_xy_jerk, 1, 990);
     MENU_ITEM_EDIT(float52, MSG_VZ_JERK, &max_z_jerk, 0.1, 990);
@@ -1065,7 +1075,11 @@ static void lcd_sd_updir()
     }
     if (lcdDrawUpdate)
     {
-      u8g.drawStr(5,30,"Continue Last Print:");
+      u8g.drawStr(5,30,"Continue Last Print");
+      if(resume_z)
+        u8g.drawStr(35,39,"(from Z):");
+      else
+        u8g.drawStr(119,30,":");
       if(resume_selected)
       {
         u8g.setColorIndex(0);
@@ -1092,10 +1106,18 @@ static void lcd_sd_updir()
     if (LCD_CLICKED)
     {
       selected_resume_once = true;
-      if(resume_selected)
+      if(resume_selected && !resume_z)
         menu_action_sdfile(resumefilename, '\0');
+      else if(resume_selected && resume_z)
+      {
+        planner_disabled_below_z = current_position[Z_AXIS];
+        menu_action_sdfile(resumefilename, '\0');
+      }
       else
+      {
+        resume_z = false;
         call_lcd_sdcard_menu = true;
+      }
     }
   }
 #endif //RESUME_FEATURE
@@ -1305,6 +1327,12 @@ static void menu_action_sdfile(const char* filename, char* longFilename)
       }
       else
       {
+        if(resume_z)
+        {
+          home_x_and_y = true;
+          enquecommand("G27");
+          enquecommand("G28");
+        }
         if(!resume_selected)
           card.removeFile(resumefilename, true); // delete the old resume file
     #endif

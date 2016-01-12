@@ -969,6 +969,7 @@ void get_command()
         #ifdef RESUME_FEATURE
           resume_print = false;
           print_resumed = false;
+          resume_z = false;
           planner_disabled_below_z = 0.0;
           sd_position = 0;
           static char delresfile_cmd[30];
@@ -1703,8 +1704,8 @@ void process_commands()
         if(resume_print && !home_x_and_y) break; // Disable homing if resuming print
         else if(move_z_before_resume)
         {
-          do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS] + 1.0/(axis_steps_per_unit[Z_AXIS]));
-          current_position[Z_AXIS] -= 1.0/(axis_steps_per_unit[Z_AXIS]);
+          do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS] - 1.0/(axis_steps_per_unit[Z_AXIS]));
+          current_position[Z_AXIS] += 1.0/(axis_steps_per_unit[Z_AXIS]);
           plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
           resume_print = true;
           print_resumed = false;
@@ -2019,16 +2020,19 @@ void process_commands()
       #ifdef RESUME_FEATURE
       if(home_x_and_y)
       {
-        do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
-        current_position[Z_AXIS] = 1.0/(axis_steps_per_unit[Z_AXIS]);
+        if(!resume_z)
+          do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0); //TODO: tries to move down but doesn't actually
+        current_position[Z_AXIS] += 1.0/(axis_steps_per_unit[Z_AXIS]);
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], 0.0);
+        do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]-1.0/(axis_steps_per_unit[Z_AXIS]));
         //current_position[Z_AXIS] = planner_disabled_below_z;
         //plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
         axis_known_position[Z_AXIS] = true;
         home_x_and_y = false;
         resume_print = true;
         print_resumed = false;
+        if(resume_z)
+          planner_disabled_below_z = current_position[Z_AXIS];
       }
       #endif
       MYSERIAL.flush();
@@ -2410,7 +2414,7 @@ void process_commands()
       */
       else if (code_seen('S')/*&& current_position[Z_AXIS] == 0*/)
       {
-        if(!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS])
+        if(resume_z || !axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS] || !axis_known_position[Z_AXIS])
           home_x_and_y = true;
         else if(axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])
         {
@@ -2418,7 +2422,8 @@ void process_commands()
           before_resume_xy[Y_AXIS] = current_position[Y_AXIS];
           move_z_before_resume = true;
         }
-        sd_position = code_value();
+        if(!resume_z)
+          sd_position = code_value();
       //if(code_seen('P'))
         //planner_disabled_below_z = code_value();
         enquecommand("G27");
