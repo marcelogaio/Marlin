@@ -46,6 +46,8 @@ More features have been added by:
   - Alberto Cotronei [@MagoKimbra]
   - Lampmaker,
   - Bradley Feldman,
+  - Aleph Objects Inc.
+  - Vince Teal
   - and others...
 
 ## License
