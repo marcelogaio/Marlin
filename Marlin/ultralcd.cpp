@@ -1057,7 +1057,9 @@ static void lcd_sd_refresh()
 #endif
 static void lcd_sd_updir()
 {
-    examined_once = false;
+    #ifdef RESUME_FEATURE
+      examined_once = false;
+    #endif
     card.updir();
     currentMenuViewOffset = 0;
 }

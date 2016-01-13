@@ -2454,7 +2454,9 @@ void process_commands()
       if(starpos!=NULL)
         *(starpos)='\0';
       card.openFile(strchr_pointer + 4,true);
-      for(int i=0; i<26; i++) contfilename[i] = (strchr_pointer + 4)[i];
+      #ifdef RESUME_FEATURE
+        for(int i=0; i<26; i++) contfilename[i] = (strchr_pointer + 4)[i];
+      #endif
       break;
     case 24: //M24 - Start SD print
       card.startFileprint();
@@ -3269,11 +3271,10 @@ Sigma_Exit:
       break;
     case 18: //compatibility
     case 84: // M84
-      if(resume_print)
-      {
-        SERIAL_ECHOLN("LEAVING");
-        break;
-      }
+      #ifdef RESUME_FEATURE
+        if(resume_print)
+          break;
+      #endif
       if(code_seen('S')){
         stepper_inactive_time = code_value() * 1000;
       }
