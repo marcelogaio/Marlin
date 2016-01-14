@@ -429,9 +429,7 @@ static void lcd_main_menu()
                 MENU_ITEM(function, MSG_RESUME_PRINT, lcd_sdcard_resume);
             MENU_ITEM(function, MSG_STOP_PRINT, lcd_sdcard_stop);
         }else if (!movesplanned() && !IS_SD_PRINTING){
-          #ifdef RESUME_FEATURE
             MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_menu);
-          #endif //RESUME_FEATURE
 #if SDCARDDETECT < 1
             MENU_ITEM(gcode, MSG_CNG_SDCARD, PSTR("M21"));  // SD-card changed by user
 #endif
