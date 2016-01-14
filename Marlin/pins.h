@@ -2417,9 +2417,9 @@ DaveX plan for Teensylu/printrboard-type pinouts (ref teensylu & sprinter) for a
 #define SDPOWER            -1
 #define SDSS               53
 #define LED_PIN            13
-#define FAN_PIN            8
-#define FAN1_PIN           6
-#define FAN2_PIN           2
+#define FAN_PIN            8 //6 for dual extruder
+#define FAN1_PIN           -1
+#define FAN2_PIN           -1
 #define PS_ON_PIN          4
 #define KILL_PIN           -1 //80 with Smart Controller LCD
 #define SUICIDE_PIN        -1  //PIN that has to be turned on right after start, to keep power flowing.
@@ -2646,7 +2646,7 @@ DaveX plan for Teensylu/printrboard-type pinouts (ref teensylu & sprinter) for a
  #define LED_PIN 13
 
  #define FAN_PIN 7
- #define FAN2_PIN 6
+ #define FAN2_PIN -1
  #define PS_ON_PIN 12
  #define KILL_PIN -1
 
