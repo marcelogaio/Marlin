@@ -491,25 +491,25 @@ void lcd_set_home_offsets()
       uint8_t noz_pos = 6*(zprobe_zoffset);
       u8g.drawBitmapP(66,noz_pos,2,12,nozzle_bmp);
       u8g.drawBitmapP(60,24,3,1,offset_bedline_bmp);
-      u8g.drawBitmapP(1,47,3,16,cw_bmp);
-      u8g.drawStr(24,60,"Z");
-      u8g.drawBitmapP(31,51,2,10,up_arrow_bmp);
-      u8g.drawBitmapP(83,47,3,16,ccw_bmp);
-      u8g.drawStr(110,60,"Z");
-      u8g.drawBitmapP(116,49,2,10,down_arrow_bmp);
+      u8g.drawBitmapP(0,47,3,16,ccw_bmp);
+      u8g.drawStr(27,60,"Z");
+      u8g.drawBitmapP(34,49,2,10,down_arrow_bmp);
+      u8g.drawBitmapP(85,47,3,16,cw_bmp);
+      u8g.drawStr(107,60,"Z");
+      u8g.drawBitmapP(113,51,2,10,up_arrow_bmp);
       if (offset_up)
       {
         u8g.setColorIndex(0);
-        u8g.drawBox(31,46,16,13);
+        u8g.drawBox(113,46,16,13);
         u8g.setColorIndex(1);
-        u8g.drawBitmapP(31,48,2,13,longup_arrow_bmp);
+        u8g.drawBitmapP(113,48,2,13,longup_arrow_bmp);
       }
       else
       {
         u8g.setColorIndex(0);
-        u8g.drawBox(116,49,16,13);
+        u8g.drawBox(34,49,16,13);
         u8g.setColorIndex(1);
-        u8g.drawBitmapP(116,49,2,13,longdown_arrow_bmp);
+        u8g.drawBitmapP(34,49,2,13,longdown_arrow_bmp);
       }
     }
     if (LCD_CLICKED)
@@ -1520,11 +1520,11 @@ void lcd_update()
             if(z_offsetting && timeoutToStatus-14000 < millis())
             {
               u8g.setColorIndex(0);
-              u8g.drawBox(31,48,16,13);
-              u8g.drawBox(116,49,16,13);
+              u8g.drawBox(114,48,16,13);
+              u8g.drawBox(34,49,16,13);
               u8g.setColorIndex(1);
-              u8g.drawBitmapP(31,51,2,10,up_arrow_bmp);
-              u8g.drawBitmapP(116,49,2,10,down_arrow_bmp);
+              u8g.drawBitmapP(113,51,2,10,up_arrow_bmp);
+              u8g.drawBitmapP(34,49,2,10,down_arrow_bmp);
             }
             #endif
             if (!lcdDrawUpdate)  break; // Terminate display update, when nothing new to draw. This must be done before the last dogm.next()
