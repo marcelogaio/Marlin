@@ -615,7 +615,7 @@ ISR(TIMER1_COMPA_vect)
       {
         #if defined(Z_PROBE_PIN) && Z_PROBE_PIN > -1
           //bool z_probe_endstop=(READ(Z_PROBE_PIN) != Z_PROBE_ENDSTOP_INVERTING);
-          if(READ(Z_PROBE_PIN) != Z_PROBE_ENDSTOP_INVERTING)
+          if(READ(Z_PROBE_PIN) != Z_PROBE_ENDSTOP_INVERTING && probing)
           {
 			  if(old_zprobe_min_endstop)
 			  {
@@ -648,7 +648,7 @@ ISR(TIMER1_COMPA_vect)
       {
         #if defined(Z_MIN_PIN) && Z_MIN_PIN > -1
           //bool z_min_endstop=(READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING);
-          if(READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING)
+          if(READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING && homing_z)
           {
 			  if(old_z_min_endstop)
 			  {

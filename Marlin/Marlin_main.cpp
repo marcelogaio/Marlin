@@ -253,6 +253,7 @@ bool reprobe_attempts[] = {0, 0};
 bool probe_fail = false;
 
 bool probing = false;
+bool homing_z = false;
 
 // Extruder offset
 #if EXTRUDERS > 1
@@ -645,6 +646,12 @@ void setup()
 
   lcd_init();
   _delay_ms(1000);	// wait 1sec to display the splash screen
+
+  //Disable Z_MIN and Z_PROBE when not in use
+  SET_OUTPUT(Z_MIN_PIN);
+  WRITE(Z_MIN_PIN, LOW);
+  SET_OUTPUT(Z_PROBE_PIN);
+  WRITE(Z_PROBE_PIN, LOW);
 
 #if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
   #ifdef CONTROLLERFAN_SPEED_START
@@ -1741,7 +1748,8 @@ void process_commands()
       }
 
       #ifdef RESUME_FEATURE
-       if(!home_x_and_y) {
+      if(!home_x_and_y) {
+      #endif
         #ifdef Z_RAISE_BEFORE_HOMING
           if(current_position[Z_AXIS] < Z_RAISE_BEFORE_HOMING && (current_position[X_AXIS] != Z_SAFE_HOMING_X_POINT || current_position[Y_AXIS] != Z_SAFE_HOMING_Y_POINT))
           {
@@ -1757,6 +1765,7 @@ void process_commands()
             destination[Z_AXIS] = 0;
           }
         #endif
+      #ifdef RESUME_FEATURE
       }
       #endif
 
@@ -1921,7 +1930,13 @@ void process_commands()
             current_position[X_AXIS] = destination[X_AXIS];
             current_position[Y_AXIS] = destination[Y_AXIS];
 
+            homing_z = true;
+            SET_INPUT(Z_MIN_PIN);
+            WRITE(Z_MIN_PIN, HIGH);
             HOMEAXIS(Z);
+            SET_OUTPUT(Z_MIN_PIN);
+            WRITE(Z_MIN_PIN, LOW); //Disable Z_MIN when not in use
+            homing_z = false;
           }
                                                 // Let's see if X and Y are homed and probe is inside bed area.
           if(code_seen(axis_codes[Z_AXIS]) && !home_all_axis
@@ -1942,7 +1957,13 @@ void process_commands()
               //plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate, active_extruder);
               st_synchronize();
 
+              homing_z = true;
+              SET_INPUT(Z_MIN_PIN);
+              WRITE(Z_MIN_PIN, HIGH);
               HOMEAXIS(Z);
+              SET_OUTPUT(Z_MIN_PIN);
+              WRITE(Z_MIN_PIN, LOW); //Disable Z_MIN when not in use
+              homing_z = false;
             } else if (!((axis_known_position[X_AXIS]) && (axis_known_position[Y_AXIS]))) {
                 LCD_MESSAGEPGM(MSG_POSITION_UNKNOWN);
                 SERIAL_ECHO_START;
@@ -2045,6 +2066,9 @@ void process_commands()
             #ifdef RESUME_FEATURE
               if (resume_print) return; // Disable probing if resuming print
             #endif
+
+            SET_INPUT(Z_PROBE_PIN);
+            WRITE(Z_PROBE_PIN, HIGH);
 
             #ifdef ENABLE_AUTO_BED_LEVELING
               plan_bed_level_matrix.set_to_identity();  //Reset the plane ("erase" all leveling data)
@@ -2255,6 +2279,10 @@ void process_commands()
               current_layer = 0;
               last_layer_z = 0;
             #endif //TRACK_LAYER
+
+            SET_OUTPUT(Z_PROBE_PIN);
+            WRITE(Z_PROBE_PIN, LOW); //Disable Z_PROBE when not in use
+
             MYSERIAL.flush();
         }
         break;
@@ -2635,6 +2663,9 @@ void process_commands()
 	double X_current, Y_current, Z_current;
 	double X_probe_location, Y_probe_location, Z_start_location, ext_position;
 	
+        SET_INPUT(Z_PROBE_PIN);
+        WRITE(Z_PROBE_PIN, HIGH);
+
 	if (code_seen('V') || code_seen('v')) {
         	verbose_level = code_value();
 		if (verbose_level<0 || verbose_level>4 ) {
@@ -2870,6 +2901,9 @@ void process_commands()
 SERIAL_PROTOCOLPGM("Standard Deviation: ");
 SERIAL_PROTOCOL_F(sigma, 6);
 SERIAL_PROTOCOLPGM("\n\n");
+
+        SET_OUTPUT(Z_PROBE_PIN);
+        WRITE(Z_PROBE_PIN, LOW); //Disable Z_PROBE when not in use
 
 Sigma_Exit:
         break;
@@ -3411,11 +3445,13 @@ Sigma_Exit:
       #endif
       #if defined(Z_MIN_PIN) && Z_MIN_PIN > -1
         SERIAL_PROTOCOLPGM(MSG_Z_MIN);
-        SERIAL_PROTOCOLLN(((READ(Z_MIN_PIN)^Z_MIN_ENDSTOP_INVERTING)?MSG_ENDSTOP_HIT:MSG_ENDSTOP_OPEN));
+        SERIAL_PROTOCOLLN("disabled unless homing");
+        //SERIAL_PROTOCOLLN(((READ(Z_MIN_PIN)^Z_MIN_ENDSTOP_INVERTING)?MSG_ENDSTOP_HIT:MSG_ENDSTOP_OPEN));
       #endif
       #if defined(Z_PROBE_PIN) && Z_PROBE_PIN > -1
         SERIAL_PROTOCOLPGM(MSG_Z_PROBE);
-        SERIAL_PROTOCOLLN(((READ(Z_PROBE_PIN)^Z_PROBE_ENDSTOP_INVERTING)?MSG_ENDSTOP_HIT:MSG_ENDSTOP_OPEN));
+        SERIAL_PROTOCOLLN("disabled unless probing");
+        //SERIAL_PROTOCOLLN(((READ(Z_PROBE_PIN)^Z_PROBE_ENDSTOP_INVERTING)?MSG_ENDSTOP_HIT:MSG_ENDSTOP_OPEN));
       #endif
       #if defined(Z_MAX_PIN) && Z_MAX_PIN > -1
         SERIAL_PROTOCOLPGM(MSG_Z_MAX);

@@ -245,6 +245,7 @@ extern float max_pos[3];
 extern bool axis_known_position[3];
 extern float zprobe_zoffset;
 extern double plane_equation_coefficients[3];
+extern bool homing_z;
 #ifdef RESUME_FEATURE
   extern float planner_disabled_below_z;
   extern bool resume_print;
