@@ -1042,7 +1042,12 @@ void thermal_runaway_protection(int *state, unsigned long *timer, float temperat
   switch (*state)
   {
     case 0: // "Heater Inactive" state
-      if (target_temperature > 0) *state = 1;
+      if (target_temperature > 0)
+      {
+        last_target_temperature[heater_id] = 0;
+        target_temp_reached[heater_id] = false;
+        *state = 1;
+      }
       break;
     case 1: // "First Heating" state
       if (temperature >= target_temperature || target_temp_reached[heater_id])
