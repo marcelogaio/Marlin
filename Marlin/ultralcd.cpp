@@ -475,7 +475,7 @@ void lcd_set_home_offsets()
 
 #ifdef BABYSTEPPING
   static void _lcd_babystep(int axis, const char *msg) {
-    if (/*encoderPosition != 0 && */((int)encoderPosition < 0 || 0.000 < zprobe_zoffset) && (zprobe_zoffset < 2.000 || (int)encoderPosition > 0)) {
+    if (/*encoderPosition != 0 && */((int)encoderPosition < 0 || -1.0*Z_PROBE_OFFSET_RANGE_MAX < zprobe_zoffset) && (zprobe_zoffset < -1.0*Z_PROBE_OFFSET_RANGE_MIN || (int)encoderPosition > 0)) {
       babystepsTodo[axis] += (int)encoderPosition;
       zprobe_zoffset -= (int)encoderPosition/axis_steps_per_unit[Z_AXIS];
       encoderPosition = 0;
