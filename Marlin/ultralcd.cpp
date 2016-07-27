@@ -3480,28 +3480,53 @@ void lcd_update() {
 
   #if ENABLED(SDSUPPORT) && PIN_EXISTS(SD_DETECT)
 
-    const bool sd_status = IS_SD_INSERTED;
-    if (sd_status != lcd_sd_status && lcd_detected()) {
+    // To handle the pin detect behavior for locked SD cards
+    // check the time interval between "insert" and "remove."
+    // If the "remove" follows the "insert" by less than 1s
+    // the card init is retried.
+    static millis_t last_sdpin_change = 0;
+    static bool last_real_sd_status = !SD_DETECT_INSERT;
 
-      if (sd_status) {
-        card.initsd();
-        if (lcd_sd_status != 2) LCD_MESSAGEPGM(MSG_SD_INSERTED);
-      }
-      else {
-        card.release();
-        if (lcd_sd_status != 2) LCD_MESSAGEPGM(MSG_SD_REMOVED);
-      }
+    // Wait for the real pin state to change
+    bool sd_status = IS_SD_INSERTED;
+    if (sd_status != last_real_sd_status && lcd_detected()) {
+      last_real_sd_status = sd_status;
+      millis_t sdpin_interval = millis() - last_sdpin_change;
+      last_sdpin_change = millis();
 
-      lcd_sd_status = sd_status;
+      // To maybe revive the LCD if static electricity killed it.
       lcdDrawUpdate = LCDVIEW_CLEAR_CALL_REDRAW;
-      lcd_implementation_init( // to maybe revive the LCD if static electricity killed it.
-        #if ENABLED(LCD_PROGRESS_BAR)
+      lcd_implementation_init(
+        #if ENABLED(LCD_PROGRESS_BAR) && ENABLED(ULTIPANEL)
           currentScreen == lcd_status_screen
         #endif
       );
+
+      card.release();
+
+      bool spurious = (!sd_status && sdpin_interval < 1000UL);
+
+      if (sd_status || spurious) {
+        card.initsd();
+        sd_status = card.cardOK;
+        if (spurious && sd_status) {
+          SERIAL_ECHO_START;
+          SERIAL_ECHOLNPGM(MSG_SD_LOCKED);
+        }
+      }
+
+      if (lcd_sd_status != sd_status) {
+        if (lcd_sd_status != 2) {
+          if (sd_status)
+            LCD_MESSAGEPGM(MSG_SD_INSERTED);
+          else
+            LCD_MESSAGEPGM(MSG_SD_REMOVED);
+        }
+        lcd_sd_status = sd_status;
+      }
     }
 
-  #endif //SDSUPPORT && SD_DETECT_PIN
+  #endif // SDSUPPORT && SD_DETECT_PIN
 
   const millis_t ms = millis();
   if (ELAPSED(ms, next_lcd_update_ms)
