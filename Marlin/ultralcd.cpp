@@ -3494,6 +3494,12 @@ void lcd_update() {
       millis_t sdpin_interval = millis() - last_sdpin_change;
       last_sdpin_change = millis();
 
+      if (DEBUGGING(INFO)) {
+        SERIAL_ECHO_START;
+        SERIAL_ECHOPAIR("New sd_status: ", sd_status ? "true" : "false");
+        SERIAL_EOL;
+      }
+
       // To maybe revive the LCD if static electricity killed it.
       lcdDrawUpdate = LCDVIEW_CLEAR_CALL_REDRAW;
       lcd_implementation_init(
