@@ -289,7 +289,6 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
 
 #if IS_KINEMATIC
   extern float delta[ABC];
-  void inverse_kinematics(const float logical[XYZ]);
 #endif
 
 #if ENABLED(DELTA)
@@ -300,8 +299,14 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
                delta_segments_per_second,
                delta_tower_angle_trim[2],
                delta_clip_start_height;
+  void inverse_kinematics(const float logical[XYZ]);
   void recalc_delta_settings(float radius, float diagonal_rod);
 #elif IS_SCARA
+  #if ENABLED(MULTI_TOOL_FEATURE)
+    void inverse_kinematics(const float logical[XYZ], const float probe_y_offset=0.0);
+  #elif ENABLED(MORGAN_SCARA)
+    void inverse_kinematics(const float logical[XYZ]);
+  #endif
   void forward_kinematics_SCARA(const float &a, const float &b);
 #endif
 
@@ -340,6 +345,11 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
 #else
   #define DEPLOY_PROBE()
   #define STOW_PROBE()
+#endif
+
+#if ENABLED(MULTI_TOOL_FEATURE)
+  extern ToolType tool_type;
+  uint16_t set_pwm_frequency_hz(const float &hz, const float dca=0.0, const float dcb=0.0, const float dcc=0.0);
 #endif
 
 #if ENABLED(HOST_KEEPALIVE_FEATURE)

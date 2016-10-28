@@ -1581,4 +1581,39 @@
   //#define FILAMENT_LCD_DISPLAY
 #endif
 
+/**
+ * Multi-Tool Feature: Allow the switching of tools via GCode
+ *
+ * A tool mode is needed to disable certain commands during the use
+ * of a laser or other tool that doesn't need the commands pertaining
+ * to an extruder, for example.
+ */
+//#define MULTI_TOOL_FEATURE
+#if ENABLED(MULTI_TOOL_FEATURE)
+
+  /**
+   * Laser
+   *
+   * The laser must use a 12V heater pin for power. This pin may be used as the PWM pin also,
+   * but this will shorten the life of lasers that have a separate 3.3V or 5V PWM pin.
+   */
+  //#define LASER
+  #if ENABLED(LASER)
+    #define LASER_MIN_PWM 0
+  #endif
+
+  //#define FOAM_CUTTER
+  #if ENABLED(FOAM_CUTTER)
+    #define FOAM_CUTTER_HEATER 0
+  #endif
+
+  // Additional tools yet to be implemented
+  //#define MILLING
+  //#define PICK_AND_PLACE
+  //#define SOLDER
+  //#define PLOTTER
+
+#endif // MULTI_TOOL_FEATURE
+
+
 #endif // CONFIGURATION_H

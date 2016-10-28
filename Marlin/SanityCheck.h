@@ -747,9 +747,6 @@ static_assert(1 >= 0
   #if ENABLED(MORGAN_SCARA)
     + 1
   #endif
-  #if ENABLED(MAKERARM_SCARA)
-    + 1
-  #endif
   #if ENABLED(COREXY)
     + 1
   #endif
@@ -768,7 +765,7 @@ static_assert(1 >= 0
   #if ENABLED(COREZY)
     + 1
   #endif
-  , "Please enable only one of DELTA, MORGAN_SCARA, MAKERARM_SCARA, COREXY, COREYX, COREXZ, COREZX, COREYZ, or COREZY."
+  , "Please enable only one of DELTA, MORGAN_SCARA, COREXY, COREYX, COREXZ, COREZX, COREYZ, or COREZY."
 );
 
 /**
@@ -1161,6 +1158,17 @@ static_assert(1 >= 0
 
 #if ENABLED(HYBRID_THRESHOLD) && DISABLED(STEALTHCHOP)
   #error "Enable STEALTHCHOP to use HYBRID_THRESHOLD."
+#endif
+
+/**
+ * Laser
+ */
+#if ENABLED(LASER)
+  #if !PIN_EXISTS(LASER_POWER)
+    #error "LASER requires LASER_POWER_PIN. Please define in your Configuration.h or pins file."
+  #elif PIN_EXISTS(LASER_PWM) && !LASER_USES_TIMER5
+    #error "LASER currently only supports a LASER_PWM_PIN of 44, 45, or 46."
+  #endif
 #endif
 
 /**

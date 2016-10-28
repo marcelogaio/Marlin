@@ -74,9 +74,9 @@
  *
  * M0   - Unconditional stop - Wait for user to press a button on the LCD (Only if ULTRA_LCD is enabled)
  * M1   - Same as M0
- * M3   - Turn laser/spindle on, set spindle/laser speed/power, set rotation to clockwise
- * M4   - Turn laser/spindle on, set spindle/laser speed/power, set rotation to counter-clockwise
- * M5   - Turn laser/spindle off
+ * M3   - Spindle on (clockwise) with given speed (Requires SPINDLE_LASER_ENABLE). Laser on with given power (Requires LASER).
+ * M4   - Spindle on (counter-clockwise) with given speed (Requires SPINDLE_LASER_ENABLE). Laser on with given power (Requires LASER).
+ * M5   - Spindle off (Requires SPINDLE_LASER_ENABLE). Laser off (Requires LASER).
  * M17  - Enable/Power all stepper motors
  * M18  - Disable all stepper motors; same as M84
  * M20  - List SD card. (Requires SDSUPPORT)
@@ -190,6 +190,11 @@
  * M420 - Enable/Disable Leveling (with current values) S1=enable S0=disable (Requires MESH_BED_LEVELING or ABL)
  * M421 - Set a single Z coordinate in the Mesh Leveling grid. X<units> Y<units> Z<units> (Requires MESH_BED_LEVELING or AUTO_BED_LEVELING_UBL)
  * M428 - Set the home_offset based on the current_position. Nearest edge applies. (Disabled by NO_WORKSPACE_OFFSETS or DELTA)
+ * M450 - Set and/or report current Printer Mode (Requires MULTI_TOOL_FEATURE)
+ * M451 - Set FFF mode (M450 S0) - (Requires MULTI_TOOL_FEATURE and EXTRUDERS > 0)
+ * M452 - Set Laser mode (M450 S1) - (Requires MULTI_TOOL_FEATURE and LASER)
+ * M453 - Set CNC mode (M450 S2) - (Requires MULTI_TOOL_FEATURE and MILLING)
+ * M454 - Set Picker mode (M450 S3) - (Requires MULTI_TOOL_FEATURE and PICK_AND_PLACE)
  * M500 - Store parameters in EEPROM. (Requires EEPROM_SETTINGS)
  * M501 - Restore parameters from EEPROM. (Requires EEPROM_SETTINGS)
  * M502 - Revert to the default "factory settings". ** Does not write them to EEPROM! **
@@ -211,13 +216,14 @@
  * M913 - Set HYBRID_THRESHOLD speed. (Requires HYBRID_THRESHOLD)
  * M914 - Set SENSORLESS_HOMING sensitivity. (Requires SENSORLESS_HOMING)
  *
+ * ************ SCARA
  * M360 - SCARA calibration: Move to cal-position ThetaA (0 deg calibration)
  * M361 - SCARA calibration: Move to cal-position ThetaB (90 deg calibration - steps per degree)
  * M362 - SCARA calibration: Move to cal-position PsiA (0 deg calibration)
  * M363 - SCARA calibration: Move to cal-position PsiB (90 deg calibration - steps per degree)
  * M364 - SCARA calibration: Move to cal-position PSIC (90 deg to Theta calibration position)
  *
- * ************ Custom codes - This can change to suit future G-code regulations
+ * ************ CUSTOM CODES
  * M928 - Start SD logging: "M928 filename.gco". Stop with M29. (Requires SDSUPPORT)
  * M999 - Restart after being stopped by error
  *
@@ -603,6 +609,10 @@ static uint8_t target_extruder;
 #endif
 
 float cartes[XYZ] = { 0 };
+
+#if ENABLED(MULTI_TOOL_FEATURE)
+  ToolType tool_type = TOOL_TYPE_EXTRUDER;
+#endif
 
 #if ENABLED(FILAMENT_WIDTH_SENSOR)
   bool filament_sensor = false;                                 // M405 turns on filament sensor control. M406 turns it off.
@@ -1539,11 +1549,13 @@ inline void set_destination_to_current() { COPY(destination, current_position); 
     if ( current_position[X_AXIS] == destination[X_AXIS]
       && current_position[Y_AXIS] == destination[Y_AXIS]
       && current_position[Z_AXIS] == destination[Z_AXIS]
-      && current_position[E_AXIS] == destination[E_AXIS]
+      && current_position[E_AXIS] == destination[E_AXIS] // E or Spindle
     ) return;
 
     refresh_cmd_timeout();
+
     planner.buffer_line_kinematic(destination, MMS_SCALED(fr_mm_s ? fr_mm_s : feedrate_mm_s), active_extruder);
+
     set_current_to_destination();
   }
 #endif // IS_KINEMATIC
@@ -5751,7 +5763,98 @@ inline void gcode_G92() {
     delay_for_power_down();
   }
 
-#endif // SPINDLE_LASER_ENABLE
+#elif ENABLED(MULTI_TOOL_FEATURE)
+
+  /**
+   * M3 or M4: Laser On with S<power>
+   *           Foam Cutter On
+   *           Spindle On (tba)
+   */
+  inline void gcode_M3_M4() {
+    bool onoff = false;
+    stepper.synchronize();
+
+    switch (tool_type) {
+
+      #if ENABLED(LASER)
+        case TOOL_TYPE_LASER: {
+          uint8_t power = parser.seen('S') ? parser.value_byte() : 255;
+          thermalManager.setLaserPower(DEBUGGING(DRYRUN) ? 0 : power);
+          if (power) {
+            onoff = true;
+            SERIAL_ECHO_START;
+            SERIAL_ECHOLNPGM(MSG_LASER_ON);
+          }
+        }
+        break;
+      #endif
+
+      #if ENABLED(MILLING)
+        case TOOL_TYPE_MILLING:
+          // Spindle support to be added here
+          break;
+      #endif
+
+      #if ENABLED(FOAM_CUTTER)
+        case TOOL_TYPE_FOAM_CUTTER:
+          onoff = true;
+          thermalManager.enableFoamCutter(true);
+          SERIAL_ECHO_START;
+          SERIAL_ECHOLNPGM(MSG_FOAM_CUTTER_ON);
+          break;
+      #endif
+
+      default: break; // other tools
+
+    } // tool_type
+
+    if (onoff) {
+      BUZZ(80, 880);
+      BUZZ(20, 0);
+      BUZZ(100, 932);
+      BUZZ(20, 0);
+      BUZZ(80, 988);
+    }
+  }
+
+  /**
+   * M5: Laser Off
+   *     Foam Cutter Off
+   *     Spindle Off
+   */
+  inline void gcode_M5() {
+    stepper.synchronize();
+
+    switch (tool_type) {
+
+      #if ENABLED(LASER)
+        case TOOL_TYPE_LASER:
+          thermalManager.setLaserPower(0);
+          SERIAL_ECHO_START;
+          SERIAL_ECHOLNPGM(MSG_LASER_OFF);
+          break;
+      #endif
+
+      #if ENABLED(MILLING)
+        case TOOL_TYPE_MILLING:
+          // Spindle support to be added here
+          break;
+      #endif
+
+      #if ENABLED(FOAM_CUTTER)
+        case TOOL_TYPE_FOAM_CUTTER:
+          thermalManager.enableFoamCutter(false);
+          SERIAL_ECHO_START;
+          SERIAL_ECHOLNPGM(MSG_FOAM_CUTTER_OFF);
+          break;
+      #endif
+
+      default: break; // other tools
+
+    } // tool_type
+  }
+
+#endif // LASER || MILLING || FOAM_CUTTER
 
 /**
  * M17: Enable power on all stepper motors
@@ -8982,6 +9085,212 @@ inline void gcode_M503() {
 
 #endif // ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
 
+#if ENABLED(MULTI_TOOL_FEATURE)
+
+  static float pwm_top;
+
+  /**
+   * Set Timer 5 PWM frequency in Hz, from 3.8Hz up to ~16MHz
+   * with a minimum resolution of 100 steps.
+   *
+   * DC values -1.0 to 1.0. Negative duty cycle inverts the pulse.
+   */
+  uint16_t set_pwm_frequency_hz(const float &hz, const float dca, const float dcb, const float dcc) {
+    float count = 0;
+    if (hz > 0 && (dca || dcb || dcc)) {
+      count = float(F_CPU) / hz;            // 1x prescaler, TOP for 16MHz base freq.
+      uint16_t prescaler;                   // Range of 30.5Hz (65535) 64.5KHz (>31)
+
+           if (count >= 255. * 256.) { prescaler = 1024; SET_CS(5, PRESCALER_1024); }
+      else if (count >= 255. * 64.)  { prescaler = 256;  SET_CS(5,  PRESCALER_256); }
+      else if (count >= 255. * 8.)   { prescaler = 64;   SET_CS(5,   PRESCALER_64); }
+      else if (count >= 255.)        { prescaler = 8;    SET_CS(5,    PRESCALER_8); }
+      else                           { prescaler = 1;    SET_CS(5,    PRESCALER_1); }
+
+      count /= float(prescaler);
+      pwm_top = round(count);               // Get the rounded count
+
+      ICR5 = (uint16_t)pwm_top - 1;         // Subtract 1 for TOP
+      OCR5A = pwm_top * abs(dca);           // Update and scale DCs
+      OCR5B = pwm_top * abs(dcb);
+      OCR5C = pwm_top * abs(dcc);
+      _SET_COM(5, A, dca ? (dca < 0 ? COM_SET_CLEAR : COM_CLEAR_SET) : COM_NORMAL); // Set compare modes
+      _SET_COM(5, B, dcb ? (dcb < 0 ? COM_SET_CLEAR : COM_CLEAR_SET) : COM_NORMAL);
+      _SET_COM(5, C, dcc ? (dcc < 0 ? COM_SET_CLEAR : COM_CLEAR_SET) : COM_NORMAL);
+
+      SET_WGM(5, FAST_PWM_ICRn);            // Fast PWM with ICR5 as TOP
+
+      //SERIAL_ECHOLNPGM("Timer 5 Settings:");
+      //SERIAL_ECHOLNPAIR("  Prescaler=", prescaler);
+      //SERIAL_ECHOLNPAIR("        TOP=", ICR5);
+      //SERIAL_ECHOLNPAIR("      OCR5A=", OCR5A);
+      //SERIAL_ECHOLNPAIR("      OCR5B=", OCR5B);
+      //SERIAL_ECHOLNPAIR("      OCR5C=", OCR5C);
+    }
+    else {
+      // Restore the default for Timer 5
+      SET_WGM(5, PWM_PC_8);                 // PWM 8-bit (Phase Correct)
+      SET_COMS(5, NORMAL, NORMAL, NORMAL);  // Do nothing
+      SET_CS(5, PRESCALER_64);              // 16MHz / 64 = 250KHz
+      OCR5A = OCR5B = OCR5C = 0;
+    }
+    return round(count);
+  }
+
+  /**
+   * Mult-Tool Selection:
+   *  - Extruder
+   *  - Laser
+   */
+  static void change_tool_type(ToolType type) {
+    tool_type = type;
+
+    switch (type) {
+      case TOOL_TYPE_EXTRUDER:
+        //
+        // When changing back to EXTRUDER from another tool, the
+        // E axis movement parameters may need to be restored...
+        //
+        // If a "5th axis" is needed, if possible connect to an unused E pin and use DISTINCT_E_FACTORS.
+        // Then parameters for each tool can be set as "E" factors in the configurations.
+        // Currently, syncing of a 5th axis is not implemented, but it is possible.
+        // Use case: A SCARA pick-and-place gripper that stays spatially aligned even as arm angles change.
+        // A 5th axis that uses "active_extruder" syncs while active -like any E axis- with no extra work.
+        //
+        //current_position[E_AXIS] = 0;
+        //planner.axis_steps_per_mm[E_AXIS] = saved_axis_steps_per_mm;
+        //planner.max_feedrate_mm_s[E_AXIS] = saved_max_feedrate_mm_s;
+        //planner.max_acceleration_mm_per_s2[E_AXIS] = saved_max_acceleration_mm_per_s2; // e.g., 10000
+        //planner.refresh_positioning();
+        break;
+
+      case TOOL_TYPE_LASER:
+        // The LASER_PWM_PIN will do PWM at 25KHz
+        SET_OUTPUT(LASER_PWM_PIN);
+        break;
+
+      #if ENABLED(MILLING)
+        case TOOL_TYPE_MILLING:
+          // Spindle support to be added here
+          break;
+      #endif
+
+      #if ENABLED(FOAM_CUTTER)
+        case TOOL_TYPE_FOAM_CUTTER:
+          // Nothing to do. Works just like a heater.
+          break;
+      #endif
+
+      // Additional tools that could be implemented:
+      #if ENABLED(PICK_AND_PLACE)
+        case TOOL_TYPE_PICKER: break;
+      #endif
+      #if ENABLED(SOLDERING)
+        case TOOL_TYPE_SOLDER: break;
+      #endif
+      #if ENABLED(PLOTTER)
+        case TOOL_TYPE_PLOTTER: break;
+      #endif
+
+      default: break;
+    }
+
+    // Turn Timer 5 on or off depending on tool
+    (void)set_pwm_frequency_hz(tool_type == TOOL_TYPE_LASER ? 25000 : 0);
+
+    thermalManager.toolSwitched();
+  }
+
+  /**
+   * Shared function for Printer Mode GCodes
+   */
+  static void gcode_printer_mode(const int8_t new_tool) {
+    const static char str_tooltype_0[] PROGMEM = "Extruder";
+    const static char str_tooltype_1[] PROGMEM = "Laser";
+    const static char* const tool_strings[] PROGMEM = { str_tooltype_0, str_tooltype_1 };
+    if (new_tool >= 0 && (ToolType)new_tool < TOOL_TYPE_COUNT) change_tool_type((ToolType)new_tool);
+    SERIAL_ECHO_START;
+    SERIAL_ECHOPGM("Tool: ");
+    serialprintPGM((char*)pgm_read_word(&(tool_strings[tool_type])));
+    SERIAL_CHAR(' ');
+    SERIAL_ECHOLN((int)(tool_type == TOOL_TYPE_EXTRUDER ? active_extruder : 0));
+  }
+
+  /**
+   * M440: Directly set PWM for Timer 5 testing
+   *
+   *  F<Hz> - Frequency (0 for firmware default)
+   *  A<dc> - Duty cycle for A (D46)
+   *  B<dc> - Duty cycle for B (D45)
+   *  C<dc> - Duty cycle for C (D44)
+   */
+  inline void gcode_M440() {
+    static uint16_t DCA = 0, DCB = 0, DCC = 0, F = 0;
+    const float freq = parser.seen('F') ? parser.value_float() : NAN;
+                 dca = parser.seen('A') ? parser.value_float() * 0.01 : NAN,
+                 dcb = parser.seen('B') ? parser.value_float() * 0.01 : NAN,
+                 dcc = parser.seen('C') ? parser.value_float() * 0.01 : NAN;
+
+    if (!isnan(freq) || !isnan(dca) || !isnan(dcb) || !isnan(dcc)) {
+      uint8_t err = 0;
+      if (!isnan(freq) && freq > float(F_CPU / 10)) {
+        SERIAL_ERROR_START;
+        SERIAL_ERRORLNPGM("Frequency too high.");
+        ++err;
+      }
+      if ((!isnan(dca) && abs(dca) > 1.0) || (!isnan(dcb) && abs(dcb) > 1.0) || (!isnan(dcc) && abs(dcc) > 1.0)) {
+        SERIAL_ERROR_START;
+        SERIAL_ERRORLNPGM("Set duty cycles between -100 and 100");
+        ++err;
+      }
+      if (err) return;
+
+      if (!isnan(freq)) F = freq;
+      if (!isnan(dca)) DCA = dca;
+      if (!isnan(dcb)) DCB = dcb;
+      if (!isnan(dcc)) DCC = dcc;
+      set_pwm_frequency_hz(F, DCA, DCB, DCC, parser.seen('I') && parser.value_bool());
+    }
+    else {
+      SERIAL_ECHO_START;
+      SERIAL_ECHOPAIR("Timer 5 F=", isnan(F) ? 0. : F);
+      SERIAL_ECHOPAIR(" DCA=", isnan(DCA) ? 0. : DCA);
+      SERIAL_ECHOPAIR(" DCB=", isnan(DCB) ? 0. : DCB);
+      SERIAL_ECHOLNPAIR(" DCC=", isnan(DCC) ? 0. : DCC);
+    }
+  }
+
+  /**
+   * M450: Set and/or report current tool type
+   *
+   *  S<type> - The new tool type
+   */
+  inline void gcode_M450() {
+    gcode_printer_mode(parser.seen('S') ? parser.value_byte() : -1);
+  }
+
+  /**
+   * M451: Select FFF printer mode
+   */
+  inline void gcode_M451() { gcode_printer_mode(TOOL_TYPE_EXTRUDER); }
+
+  /**
+   * M452: Select Laser printer mode
+   */
+  inline void gcode_M452() { gcode_printer_mode(TOOL_TYPE_LASER); }
+
+  /**
+   * M453: Select CNC printer mode
+   */
+  inline void gcode_M453() { gcode_printer_mode(TOOL_TYPE_MILLING); }
+
+  /**
+   * M454: Select Pick-and-Place printer mode
+   */
+  inline void gcode_M454() { gcode_printer_mode(TOOL_TYPE_PICKER); }
+
+#endif
+
 #if HAS_BED_PROBE
 
   void refresh_zprobe_zoffset(const bool no_babystep/*=false*/) {
@@ -10153,17 +10462,25 @@ void process_next_command() {
           break;
       #endif // ULTIPANEL
 
-      #if ENABLED(SPINDLE_LASER_ENABLE)
-        case 3:
-          gcode_M3_M4(true);   // M3: turn spindle/laser on, set laser/spindle power/speed, set rotation direction CW
-          break;               // synchronizes with movement commands
-        case 4:
-          gcode_M3_M4(false);  // M4: turn spindle/laser on, set laser/spindle power/speed, set rotation direction CCW
-          break;               // synchronizes with movement commands
-        case 5:
-          gcode_M5();     // M5 - turn spindle/laser off
-          break;          // synchronizes with movement commands
+      #if ENABLED(SPINDLE_LASER_ENABLE) || ENABLED(LASER)
+        #if ENABLED(SPINDLE_LASER_ENABLE)
+          case 3:                 // M3: Spindle on (clockwise), set speed
+            gcode_M3_M4(true);
+            break;
+          case 4:                 // M4: Spindle on (counter-clockwise), set speed
+            gcode_M3_M4(false);
+            break;
+        #else
+          case 3:                 // M3 / M4: Laser On
+          case 4:
+            gcode_M3_M4();
+            break;
+        #endif
+        case 5:                   // M5: Laser / Spindle Off
+          gcode_M5();
+          break;
       #endif
+
       case 17: // M17: Enable all stepper motors
         gcode_M17();
         break;
@@ -10644,6 +10961,23 @@ void process_next_command() {
           break;
       #endif
 
+      #if ENABLED(MULTI_TOOL_FEATURE)
+        case 440: // M440: Set Timer 5 PWM directly
+          gcode_M440();
+          break;
+        case 450: // M450: Report current tool type
+          gcode_M450();
+          break;
+        case 451: // M451: Select FFF printer mode
+          gcode_M451();
+          break;
+        #if ENABLED(LASER)
+          case 452: // M452: Select Laser printer mode
+            gcode_M452();
+            break;
+        #endif
+      #endif
+
       #if HAS_BED_PROBE
         case 851: // M851: Set Z Probe Z Offset
           gcode_M851();
@@ -10660,7 +10994,7 @@ void process_next_command() {
         case 605: // M605: Set Dual X Carriage movement mode
           gcode_M605();
           break;
-      #endif // DUAL_X_CARRIAGE
+      #endif // DUAL_X_CARRIAGE || DUAL_NOZZLE_DUPLICATION_MODE
 
       #if ENABLED(LIN_ADVANCE)
         case 900: // M900: Set advance K factor.
@@ -11575,7 +11909,11 @@ void prepare_move_to_destination() {
 
   #if ENABLED(PREVENT_COLD_EXTRUSION)
 
-    if (!DEBUGGING(DRYRUN)) {
+    if (!DEBUGGING(DRYRUN)
+      #if ENABLED(MULTI_TOOL_FEATURE)
+        && tool_type == TOOL_TYPE_EXTRUDER
+      #endif
+    ) {
       if (destination[E_AXIS] != current_position[E_AXIS]) {
         if (thermalManager.tooColdToExtrude(active_extruder)) {
           current_position[E_AXIS] = destination[E_AXIS]; // Behave as if the move really took place, but ignore E part

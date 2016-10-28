@@ -227,6 +227,15 @@ typedef enum {
 #define SET_COMC(T,V) SET_COM(T,C,V)
 #define SET_COMS(T,V1,V2,V3) do{ SET_COMA(T,V1); SET_COMB(T,V2); SET_COMC(T,V3); }while(0)
 
+// Set ICR value
+#define SET_ICR(T,V) (ICR##T##C = V)
+
+// Set OCR value
+#define SET_OCR(T,C,V) (OCR##T##C = V)
+#define SET_OCRA(T,V) SET_OCR(T,A,V)
+#define SET_OCRB(T,V) SET_OCR(T,B,V)
+#define SET_OCRC(T,V) SET_OCR(T,C,V)
+
 // Set Noise Canceler bit
 #define SET_ICNC(T,V) (TCCR##T##B = (V) ? TCCR##T##B | _BV(ICNC##T) : TCCR##T##B & ~_BV(ICNC##T))
 

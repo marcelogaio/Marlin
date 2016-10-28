@@ -72,9 +72,8 @@
 
 // Specify the specific SCARA model
 #define MORGAN_SCARA
-//#define MAKERARM_SCARA
 
-#if ENABLED(MORGAN_SCARA) || ENABLED(MAKERARM_SCARA)
+#if ENABLED(MORGAN_SCARA)
   //#define DEBUG_SCARA_KINEMATICS
   //#define SCARA_FEEDRATE_SCALING // Convert XY feedrate from mm/s to degrees/s on the fly
 

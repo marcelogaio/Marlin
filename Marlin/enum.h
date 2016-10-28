@@ -169,4 +169,17 @@ enum LCDViewAction {
   };
 #endif
 
+#if ENABLED(MULTI_TOOL_FEATURE)
+  enum ToolType {
+    TOOL_TYPE_EXTRUDER,     // M450 S0 or M451
+    TOOL_TYPE_LASER,        // M450 S1 or M452
+    TOOL_TYPE_MILLING,      // M450 S2 or M453
+    TOOL_TYPE_PICKER,       // M450 S3 or M454
+    TOOL_TYPE_SOLDER,       // M450 S4
+    TOOL_TYPE_PLOTTER,
+    TOOL_TYPE_FOAM_CUTTER,
+    TOOL_TYPE_COUNT
+  };
+#endif
+
 #endif // __ENUM_H__

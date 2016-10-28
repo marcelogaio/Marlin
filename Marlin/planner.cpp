@@ -756,7 +756,11 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
   #endif
 
   #if ENABLED(PREVENT_COLD_EXTRUSION)
-    if (de) {
+    if (de
+      #if ENABLED(MULTI_TOOL_FEATURE)
+        && tool_type == TOOL_TYPE_EXTRUDER
+      #endif
+    ) {
       if (thermalManager.tooColdToExtrude(extruder)) {
         position[E_AXIS] = target[E_AXIS]; // Behave as if the move really took place, but ignore E part
         de = 0; // no difference
