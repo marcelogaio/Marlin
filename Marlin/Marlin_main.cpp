@@ -9484,9 +9484,16 @@ inline void gcode_M999() {
 
 #if ENABLED(SWITCHING_EXTRUDER)
   inline void move_extruder_servo(uint8_t e) {
-    const int angles[2] = SWITCHING_EXTRUDER_SERVO_ANGLES;
-    MOVE_SERVO(SWITCHING_EXTRUDER_SERVO_NR, angles[e]);
-    safe_delay(500);
+    #if (EXTRUDERS == 2)
+      const int angles[2] = SWITCHING_EXTRUDER_SERVO_ANGLES;
+      if (e < 2) MOVE_SERVO(SWITCHING_EXTRUDER_SERVO_NR, angles[e]);
+      safe_delay(500);
+    #else
+      const int angles[4] = SWITCHING_EXTRUDER_SERVO_ANGLES;
+      if (e < 2) MOVE_SERVO(SWITCHING_EXTRUDER_SERVO_NR, angles[e]);
+      else if (e < 4) MOVE_SERVO(SWITCHING_EXTRUDER_E23_SERVO_NR, angles[e]);
+      safe_delay(500);
+    #endif 
   }
 #endif
 
