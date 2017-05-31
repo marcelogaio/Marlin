@@ -100,7 +100,7 @@ void TWIBus::echoprefix(uint8_t bytes, const char prefix[], uint8_t adr) {
 // static
 void TWIBus::echodata(uint8_t bytes, const char prefix[], uint8_t adr) {
   echoprefix(bytes, prefix, adr);
-  while (bytes-- && Wire.available()) SERIAL_CHAR(Wire.read());
+  while (bytes-- && Wire.available()) SERIAL_ECHOPAIR(" ", (int)Wire.read());
   SERIAL_EOL;
 }
 
