@@ -143,6 +143,15 @@
 // For Cyclops or any "multi-extruder" that shares a single nozzle.
 //#define SINGLENOZZLE
 
+// Průša MK2 Single Nozzle Multi-Material Multiplexer, and variants.
+//#define MK2_MULTIPLEXER
+#if ENABLED(MK2_MULTIPLEXER)
+  // Override the default DIO selector pins here, if needed.
+  //#define E_MUX0_PIN 40
+  //#define E_MUX1_PIN 42
+  //#define E_MUX2_PIN 44
+#endif
+
 // A dual extruder that uses a single stepper motor
 //#define SWITCHING_EXTRUDER
 #if ENABLED(SWITCHING_EXTRUDER)
