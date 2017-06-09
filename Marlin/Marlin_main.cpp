@@ -5635,7 +5635,7 @@ inline void gcode_G92() {
             update_software_endstops((AxisEnum)i);
 
             #if ENABLED(I2C_POSITION_ENCODERS)
-              I2CPEM.encoders[I2CPEM.idx_from_axis((AxisEnum) i)].set_axis_offset(position_shift[i]);
+              I2CPEM.encoders[I2CPEM.idx_from_axis((AxisEnum)i)].set_axis_offset(position_shift[i]);
             #endif
 
           #endif
